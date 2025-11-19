@@ -1,0 +1,15 @@
+LICENSE
+package.xml
+setup.cfg
+setup.py
+../../build/ds4/ds4.egg-info/PKG-INFO
+../../build/ds4/ds4.egg-info/SOURCES.txt
+../../build/ds4/ds4.egg-info/dependency_links.txt
+../../build/ds4/ds4.egg-info/requires.txt
+../../build/ds4/ds4.egg-info/top_level.txt
+../../build/ds4/ds4.egg-info/zip-safe
+ds4/__init__.py
+resource/ds4
+test/test_copyright.py
+test/test_flake8.py
+test/test_pep257.py
