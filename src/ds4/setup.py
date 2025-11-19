@@ -24,7 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'ds4_print=ds4.controller_print:main',
+            'ds4_print=ds4.ds4_print:main',
         ],
     },
 )
