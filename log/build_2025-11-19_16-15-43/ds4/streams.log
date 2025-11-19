@@ -1,0 +1,25 @@
+[1.242s] Invoking command in '/home/tobbe/leader/src/ds4': PYTHONPATH=/home/tobbe/leader/build/ds4/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/tobbe/leader/install/ds4/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/ds4 build --build-base /home/tobbe/leader/build/ds4/build install --record /home/tobbe/leader/build/ds4/install.log --single-version-externally-managed install_data
+[1.513s] running egg_info
+[1.532s] writing ../../build/ds4/ds4.egg-info/PKG-INFO
+[1.532s] writing dependency_links to ../../build/ds4/ds4.egg-info/dependency_links.txt
+[1.532s] writing entry points to ../../build/ds4/ds4.egg-info/entry_points.txt
+[1.532s] writing requirements to ../../build/ds4/ds4.egg-info/requires.txt
+[1.533s] writing top-level names to ../../build/ds4/ds4.egg-info/top_level.txt
+[1.572s] reading manifest file '../../build/ds4/ds4.egg-info/SOURCES.txt'
+[1.573s] adding license file 'LICENSE'
+[1.574s] writing manifest file '../../build/ds4/ds4.egg-info/SOURCES.txt'
+[1.574s] running build
+[1.575s] running build_py
+[1.575s] copying ds4/controller_print.py -> /home/tobbe/leader/build/ds4/build/lib/ds4
+[1.575s] running install
+[1.581s] running install_lib
+[1.600s] copying /home/tobbe/leader/build/ds4/build/lib/ds4/controller_print.py -> /home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4
+[1.601s] byte-compiling /home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4/controller_print.py to controller_print.cpython-312.pyc
+[1.602s] running install_data
+[1.602s] running install_egg_info
+[1.622s] removing '/home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4-0.0.0-py3.12.egg-info' (and everything under it)
+[1.623s] Copying ../../build/ds4/ds4.egg-info to /home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4-0.0.0-py3.12.egg-info
+[1.625s] running install_scripts
+[1.761s] Installing ds4_print script to /home/tobbe/leader/install/ds4/lib/ds4
+[1.762s] writing list of installed files to '/home/tobbe/leader/build/ds4/install.log'
+[1.798s] Invoked command in '/home/tobbe/leader/src/ds4' returned '0': PYTHONPATH=/home/tobbe/leader/build/ds4/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/tobbe/leader/install/ds4/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/ds4 build --build-base /home/tobbe/leader/build/ds4/build install --record /home/tobbe/leader/build/ds4/install.log --single-version-externally-managed install_data

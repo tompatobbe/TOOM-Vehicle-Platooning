@@ -1,5 +1,7 @@
 /home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4/__init__.py
+/home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4/controller_print.py
 /home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4/__pycache__/__init__.cpython-312.pyc
+/home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4/__pycache__/controller_print.cpython-312.pyc
 /home/tobbe/leader/install/ds4/share/ament_index/resource_index/packages/ds4
 /home/tobbe/leader/install/ds4/share/ds4/package.xml
 /home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4-0.0.0-py3.12.egg-info/SOURCES.txt
@@ -8,3 +10,5 @@
 /home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4-0.0.0-py3.12.egg-info/top_level.txt
 /home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4-0.0.0-py3.12.egg-info/requires.txt
 /home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4-0.0.0-py3.12.egg-info/zip-safe
+/home/tobbe/leader/install/ds4/lib/python3.12/site-packages/ds4-0.0.0-py3.12.egg-info/entry_points.txt
+/home/tobbe/leader/install/ds4/lib/ds4/ds4_print
