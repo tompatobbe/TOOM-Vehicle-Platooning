@@ -29,13 +29,38 @@ class DS4PrintNode(Node):
             2: "L2 Analog", 3: "Right Stick L/R",
             4: "Right Stick U/D", 5: "R2 Analog"
         }
+        # Configure which buttons should trigger actions (by index)
+        # Change this set to only enable the buttons you want.
+        self.enabled_buttons = {0, 1}  # example: Cross (0) and Circle (1)
+
+        # Optional: map button indices to handler methods
+        self.button_handlers = {
+            0: self.on_cross,
+            1: self.on_circle,
+        }
+
+    # Button handler methods - customize these to perform actions
+    def on_cross(self):
+        self.get_logger().info("Cross (0) handler: action executed")
+
+    def on_circle(self):
+        self.get_logger().info("Circle (1) handler: action executed")
 
     def listener_callback(self, msg):
-        # Print Button Inputs
+        # Print Button Inputs — only for enabled buttons
         for i, button_val in enumerate(msg.buttons):
             if button_val == 1:
-                button_name = self.buttons_map.get(i, f"Button {i}")
-                self.get_logger().info(f"Pressed: {button_name}")
+                if i in self.button_handlers:
+                    # Call the specific handler for this button
+                    try:
+                        self.button_handlers[i]()
+                    except Exception as e:
+                        self.get_logger().error(f"Error in handler for button {i}: {e}")
+                elif i in self.enabled_buttons:
+                    # Enabled but no handler defined: log the press
+                    button_name = self.buttons_map.get(i, f"Button {i}")
+                    self.get_logger().info(f"Pressed: {button_name}")
+                # otherwise: ignore button presses for non-enabled buttons
 
         # Print Axis Inputs (only if they are moved significantly)
         for i, axis_val in enumerate(msg.axes):
