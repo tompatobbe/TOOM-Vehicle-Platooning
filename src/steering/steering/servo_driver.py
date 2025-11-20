@@ -18,6 +18,10 @@ class ServoController(Node):
         self.pin = self.get_parameter('gpio_pin').value
         min_p = self.get_parameter('min_pulse').value
         max_p = self.get_parameter('max_pulse').value
+        
+        # --- Servo Range ---
+        self.max_angle = 90
+        self.min_angle = 0
 
         # --- Hardware Setup ---
         try:
@@ -25,8 +29,8 @@ class ServoController(Node):
             factory = PiGPIOFactory()
             self.servo = AngularServo(
                 self.pin, 
-                min_angle=0, 
-                max_angle=90,
+                min_angle=self.min_angle, 
+                max_angle=self.max_angle,
                 min_pulse_width=min_p, 
                 max_pulse_width=max_p,
                 pin_factory=factory
@@ -48,7 +52,7 @@ class ServoController(Node):
     def listener_callback(self, msg):
         target_angle = msg.data
         if self.servo:
-            target_angle = max(0.0, min(180.0, target_angle))
+            target_angle = max(self.min_angle, min(self.max_angle, target_angle))
             self.servo.angle = target_angle
             self.get_logger().info(f'Moving to: {target_angle:.2f} degrees')
 
