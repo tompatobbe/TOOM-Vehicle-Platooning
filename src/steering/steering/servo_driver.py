@@ -26,7 +26,7 @@ class ServoController(Node):
             self.servo = AngularServo(
                 self.pin, 
                 min_angle=0, 
-                max_angle=90,
+                max_angle=135,
                 min_pulse_width=min_p, 
                 max_pulse_width=max_p,
                 pin_factory=factory
