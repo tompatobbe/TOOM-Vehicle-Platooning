@@ -12,8 +12,8 @@ class ServoSweep(Node):
         # --- CONFIGURATION ---
         # RC Car steering usually binds before 0 or 180. 
         # Watch carefully and CTRL+C if it hits the physical limit!
-        self.min_angle = 10.0   # Start slightly safe
-        self.max_angle = 120.0  # End slightly safe
+        self.min_angle = 0.0   # Start slightly safe
+        self.max_angle = 90.0  # End slightly safe
         self.step = 2.0         # How many degrees to move per tick
         self.speed = 0.05       # Seconds to wait between moves (lower = faster)
         
