@@ -3,7 +3,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
 from gpiozero import AngularServo
-from gpiozero.pins.pigpio import PiGPIOFactory
+from gpiozero.pins.rpigpio import PiGPIOFactory
 import math
 
 class ServoController(Node):
