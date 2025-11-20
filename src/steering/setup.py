@@ -26,7 +26,8 @@ setup(
         'console_scripts': [
             'servo_driver = steering.servo_driver:main',
             'servo_sweep = steering.servo_sweep:main',
-            'calibrate = steering.calibrate:main'
+            'calibrate = steering.calibrate:main',
+            'servo_driver2 = steering.servo_driver2:main',
         ],
     },
 )
