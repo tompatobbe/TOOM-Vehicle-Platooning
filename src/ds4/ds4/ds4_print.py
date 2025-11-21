@@ -14,10 +14,10 @@ class DS4PrintNode(Node):
             self.listener_callback,
             10)
         
-        # Publish servo commands
+        # Publish desired angle to steering controller
         self.servo_publisher = self.create_publisher(
             Float32,
-            '/servo/angle',
+            '/servo/desired_angle',
             10)
         
         self.subscription  # prevent unused variable warning

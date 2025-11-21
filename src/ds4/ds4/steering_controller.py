@@ -14,24 +14,23 @@ class SteeringController(Node):
         self.declare_parameter('ki', 0.1)
         self.declare_parameter('kd', 0.05)
         self.declare_parameter('dt', 0.01)  # 10ms update rate
-        self.declare_parameter('min_angle', 0.0)
-        self.declare_parameter('max_angle', 60.0)
+        self.declare_parameter('max_duty_cycle', 100.0)  # Percentage
         
         kp = self.get_parameter('kp').value
         ki = self.get_parameter('ki').value
         kd = self.get_parameter('kd').value
         dt = self.get_parameter('dt').value
-        self.min_angle = self.get_parameter('min_angle').value
-        self.max_angle = self.get_parameter('max_angle').value
+        self.max_duty_cycle = self.get_parameter('max_duty_cycle').value
         
         # --- PID Controller ---
+        # PID outputs duty cycle in range [-max_duty_cycle, max_duty_cycle]
         self.pid = PID(
             kp=kp,
             ki=ki,
             kd=kd,
             dt=dt,
-            pid_min=self.min_angle,
-            pid_max=self.max_angle
+            pid_min=-self.max_duty_cycle,
+            pid_max=self.max_duty_cycle
         )
         
         # --- ROS Communication ---
@@ -51,14 +50,14 @@ class SteeringController(Node):
             10
         )
         
-        # Publish corrected servo command
+        # Publish duty cycle command (speed control)
         self.servo_pub = self.create_publisher(
             Float32,
-            '/servo/angle',
+            '/servo/duty_cycle',
             10
         )
         
-        self.current_desired = 30.0  # Start at middle
+        self.current_desired = 30.0  # Start at middle angle
         self.current_feedback = 30.0
         
         self.get_logger().info("Steering controller initialized")
@@ -73,17 +72,18 @@ class SteeringController(Node):
         
         # Calculate error and apply PID control
         error = self.current_desired - self.current_feedback
-        corrected_angle = self.pid.update(error)
+        duty_cycle = self.pid.update(error)
         
-        # Publish corrected command
+        # Publish duty cycle command (speed/direction control)
         servo_msg = Float32()
-        servo_msg.data = corrected_angle
+        servo_msg.data = duty_cycle
         self.servo_pub.publish(servo_msg)
         
         self.get_logger().debug(
             f"Desired: {self.current_desired:.2f}° | "
             f"Feedback: {self.current_feedback:.2f}° | "
-            f"Corrected: {corrected_angle:.2f}°"
+            f"Error: {error:.2f}° | "
+            f"Duty Cycle: {duty_cycle:.2f}%"
         )
 
 
