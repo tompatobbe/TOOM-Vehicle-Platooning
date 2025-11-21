@@ -35,10 +35,6 @@ class DS4PrintNode(Node):
 
         # Optional: map button indices to handler methods
         self.button_handlers = {
-            0: self.on_cross,
-            1: self.on_circle,
-            2: self.on_triangle,
-            3: self.on_square,
         }
 
     # Button handler methods - customize these to perform actions
@@ -54,7 +50,7 @@ class DS4PrintNode(Node):
     def on_square(self):
         self.get_logger().info("Square (3) handler: action executed")
 
-        
+
 
     def listener_callback(self, msg):
         # Print Button Inputs — only for enabled buttons
@@ -92,3 +88,6 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
+
+    #cmd_vel
