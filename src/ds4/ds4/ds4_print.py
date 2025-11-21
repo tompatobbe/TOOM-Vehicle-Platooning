@@ -58,7 +58,7 @@ class DS4PrintNode(Node):
             if i != 0:
                 continue
 
-            if abs(axis_val) > 0.1: # Deadzone filter
+            if abs(axis_val) > 0.05: # Deadzone filter
                 axis_name = self.axes_map.get(i, f"Axis {i}")
                 self.get_logger().info(f"Moving {axis_name}: {axis_val:.2f}")
 
