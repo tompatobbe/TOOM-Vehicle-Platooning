@@ -71,13 +71,16 @@ class DS4PrintNode(Node):
                 # Map joystick range [-1, 1] to servo angle range
                 angle_range = self.max_servo_angle - self.min_servo_angle
                 self.current_angle = self.min_servo_angle + (angle_range * (axis_val + 1) / 2)
-                
-                # Publish servo command
-                servo_msg = Float32()
-                servo_msg.data = self.current_angle
-                self.servo_publisher.publish(servo_msg)
-                
-                self.get_logger().info(f"Servo angle: {self.current_angle:.2f}°")
+            else:
+                # Reset to middle when no input
+                self.current_angle = (self.min_servo_angle + self.max_servo_angle) / 2
+            
+            # Publish servo command
+            servo_msg = Float32()
+            servo_msg.data = self.current_angle
+            self.servo_publisher.publish(servo_msg)
+            
+            self.get_logger().info(f"Servo angle: {self.current_angle:.2f}°")
 
 def main(args=None):
     rclpy.init(args=args)
