@@ -31,12 +31,14 @@ class DS4PrintNode(Node):
         }
         # Configure which buttons should trigger actions (by index)
         # Change this set to only enable the buttons you want.
-        self.enabled_buttons = {0, 1}  # example: Cross (0) and Circle (1)
+        self.enabled_buttons = {}  # example: Cross (0) and Circle (1)
 
         # Optional: map button indices to handler methods
         self.button_handlers = {
             0: self.on_cross,
             1: self.on_circle,
+            2: self.on_triangle,
+            3: self.on_square
         }
 
     # Button handler methods - customize these to perform actions
