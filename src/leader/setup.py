@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'controller'
+package_name = 'leader'
 
 setup(
     name=package_name,
@@ -24,8 +24,6 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'ds4 = controller.ds4:main',
-            'servo_driver = controller.servo_driver:main',
         ],
     },
 )
