@@ -56,25 +56,16 @@ class ServoController(Node):
             10)
         
     def listener_callback(self, msg):
-        # --- THE FIX: INVERT STEERING ---
-        # Formula: (Max + Min) - Input = Inverted Angle
-        # Example: (100 + 0) - 10 = 90 (Left becomes Right)
-        inverted_angle = (self.max_angle + self.min_angle) - msg.data
+        target_angle = msg.data
         
-        # Add offset (Trim)
-        target_angle = inverted_angle + self.middle_offset
         
         if self.servo:
             # Safety Clamp
             target_angle = max(self.min_angle, min(self.max_angle, target_angle))
             self.servo.angle = target_angle
+     
             
-            # --- LOGGING FIX ---
-            # Calculate how far we are from the physical center (50 deg)
-            physical_center = (self.min_angle + self.max_angle) / 2
-            displayed = target_angle + physical_center
-            
-            self.get_logger().info(f'Angle: {target_angle:.2f}° | Relative: {displayed:+.2f}°')
+            self.get_logger().info(f'Angle: {target_angle:.2f}°')
 
 
     def cleanup(self):
