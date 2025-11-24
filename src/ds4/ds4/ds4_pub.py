@@ -74,7 +74,7 @@ class JoystickController(Node):
             self.motor_publisher.publish(motor_msg)
 
             # Optional: Print status
-            # self.get_logger().info(f"R2: {r2_val:.2f} -> Throttle: {throttle:.2f}")
+            self.get_logger().info(f"R2: {r2_val:.2f} -> Throttle: {throttle:.2f}")
 
 def main(args=None):
     rclpy.init(args=args)
