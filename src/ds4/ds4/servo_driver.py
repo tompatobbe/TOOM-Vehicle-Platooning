@@ -57,11 +57,15 @@ class ServoController(Node):
             10)
         
     def listener_callback(self, msg):
+        # compute servo command preserving current middle offset
         target_angle = msg.data - self.middle_offset
         if self.servo:
             target_angle = max(self.min_angle, min(self.max_angle, target_angle))
             self.servo.angle = target_angle
-            self.get_logger().info(f'Moving to: {target_angle:.2f} degrees')
+            # show relative angle with center as 0 (plus/minus around middle)
+            middle_angle = (self.min_angle + self.max_angle) / 2
+            displayed = target_angle - middle_angle
+            self.get_logger().info(f'Moving to (servo): {target_angle:.2f}°  |  relative: {displayed:+.2f}°')
 
     def cleanup(self):
         if self.servo:
