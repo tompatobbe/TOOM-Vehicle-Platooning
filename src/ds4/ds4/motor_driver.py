@@ -11,12 +11,12 @@ class MotorTester(Node):
         super().__init__('motor_driver_node')
         
         # --- Parameters ---
-        self.declare_parameter('gpio_pin', 18)
+        self.declare_parameter('gpio_pin', 13)
         self.pin = self.get_parameter('gpio_pin').get_parameter_value().integer_value
         
         # Safety Limit: 0.50 means max power is limited to 50%
         # 20% might be too weak to overcome the motor's deadzone/friction.
-        self.declare_parameter('max_power_limit', 1.0)
+        self.declare_parameter('max_power_limit', 0.15)
         self.power_limit = self.get_parameter('max_power_limit').get_parameter_value().double_value
 
         self.get_logger().info(f"Initializing Motor Driver on GPIO {self.pin} with Max Power {self.power_limit*100}%")
