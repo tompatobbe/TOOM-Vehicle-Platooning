@@ -14,8 +14,9 @@ class MotorTester(Node):
         self.declare_parameter('gpio_pin', 18)
         self.pin = self.get_parameter('gpio_pin').get_parameter_value().integer_value
         
-        # Safety Limit: 0.20 means max power is limited to 20%
-        self.declare_parameter('max_power_limit', 0.20)
+        # Safety Limit: 0.50 means max power is limited to 50%
+        # 20% might be too weak to overcome the motor's deadzone/friction.
+        self.declare_parameter('max_power_limit', 0.50)
         self.power_limit = self.get_parameter('max_power_limit').get_parameter_value().double_value
 
         self.get_logger().info(f"Initializing Motor Driver on GPIO {self.pin} with Max Power {self.power_limit*100}%")
@@ -65,7 +66,9 @@ class MotorTester(Node):
         target_pw = self.NEUTRAL_PW + (scaled_throttle * 500)
         
         self.set_speed(int(target_pw))
-        # self.get_logger().info(f"Input: {input_throttle:.2f} -> PW: {int(target_pw)}")
+        
+        # Log the output so we can debug deadzones
+        self.get_logger().info(f"Input: {input_throttle:.2f} -> PW: {int(target_pw)}")
 
     def cleanup(self):
         """Stop motor on shutdown"""
