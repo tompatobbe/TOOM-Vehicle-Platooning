@@ -7,64 +7,80 @@ class DS4PrintNode(Node):
     def __init__(self):
         super().__init__('ds4_print_node')
         
-        # Subscribe to joystick
+        # Subscribe to the /joy topic
         self.subscription = self.create_subscription(
             Joy,
             'joy',
             self.listener_callback,
             10)
         
-        # Publisher for Servo (Left Stick)
+        # Publish servo commands
         self.servo_publisher = self.create_publisher(
             Float32,
             '/servo/angle',
             10)
-            
-        # Publisher for R2 (Trigger)
-        self.r2_publisher = self.create_publisher(
-            Float32,
-            '/r2_value',
-            10)
         
-        self.get_logger().info("Node started. Press R2 to publish to /r2_value")
+        self.subscription  # prevent unused variable warning
+        self.get_logger().info("Waiting for DualShock 4 input...")
 
-        # Settings
+        # DS4 Mapping
+        self.buttons_map = {
+            0: "Cross", 1: "Circle", 2: "Triangle", 3: "Square",
+            4: "L1", 5: "R1", 6: "L2", 7: "R2",
+            8: "Share", 9: "Options", 10: "PS Button",
+            11: "L3", 12: "R3"
+        }
+
+        self.axes_map = {
+            0: "Left Stick L/R", 1: "Left Stick U/D",
+            2: "L2 Analog", 3: "Right Stick L/R",
+            4: "Right Stick U/D", 5: "R2 Analog"
+        }
+        
+        self.enabled_buttons = {} 
+        self.button_handlers = {}
+        
+        # Servo control parameters
         self.min_servo_angle = 0
         self.max_servo_angle = 60
-        self.current_angle = 30
+        self.current_angle = 30  # Start at middle
+
+    # Button handler methods (unused)
+    def on_cross(self): pass
+    def on_circle(self): pass
+    def on_triangle(self): pass
+    def on_square(self): pass
 
     def listener_callback(self, msg):
-        # ---------------------------------------------------------
-        # 1. Handle R2 Trigger (Axis 5)
-        # Based on your logs: Unpressed = 1.0, Pressed = -1.0
-        # ---------------------------------------------------------
-        if len(msg.axes) > 5:
-            raw_r2 = msg.axes[5]
-            
-            # Mathematics to map [1.0 ... -1.0] to [0.0 ... 1.0]
-            # 1.0 (unpressed) -> (1 - 1) / 2 = 0.0
-            # -1.0 (pressed)  -> (1 - (-1)) / 2 = 1.0
-            normalized_r2 = (1 - raw_r2) / 2.0
-            
-            # Publish
-            r2_msg = Float32()
-            r2_msg.data = normalized_r2
-            self.r2_publisher.publish(r2_msg)
+        # Print Button Inputs (Only if enabled)
+        for i, button_val in enumerate(msg.buttons):
+            if button_val == 1:
+                if i in self.button_handlers:
+                    try:
+                        self.button_handlers[i]()
+                    except Exception as e:
+                        self.get_logger().error(f"Error in handler: {e}")
+                elif i in self.enabled_buttons:
+                    button_name = self.buttons_map.get(i, f"Button {i}")
+                    self.get_logger().info(f"Pressed: {button_name}")
 
-        # ---------------------------------------------------------
-        # 2. Handle Servo (Left Stick - Axis 0)
-        # ---------------------------------------------------------
+        # Control servo with Left Stick L/R (axis 0)
         if len(msg.axes) > 0:
-            axis_val = msg.axes[0]
-            if abs(axis_val) > 0.05:
+            axis_val = msg.axes[0]  # Left Stick L/R
+            if abs(axis_val) > 0.05:  # Deadzone filter
+                # Map joystick range [-1, 1] to servo angle range
                 angle_range = self.max_servo_angle - self.min_servo_angle
                 self.current_angle = self.min_servo_angle + (angle_range * (axis_val + 1) / 2)
             else:
+                # Reset to middle when no input
                 self.current_angle = (self.min_servo_angle + self.max_servo_angle) / 2
             
+            # Publish servo command
             servo_msg = Float32()
             servo_msg.data = self.current_angle
             self.servo_publisher.publish(servo_msg)
+            
+            self.get_logger().info(f"Servo angle: {self.current_angle:.2f}°")
 
 def main(args=None):
     rclpy.init(args=args)
