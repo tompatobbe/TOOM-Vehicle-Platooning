@@ -82,7 +82,7 @@ class JoystickController(Node):
             self.reverse_publisher.publish(rev_msg)
 
             # Log status
-            # self.get_logger().info(f"Fwd: {throttle_fwd:.2f} | Rev: {throttle_rev:.2f}")
+            self.get_logger().info(f"Fwd: {throttle_fwd:.2f} | Rev: {throttle_rev:.2f}")
 
 def main(args=None):
     rclpy.init(args=args)
