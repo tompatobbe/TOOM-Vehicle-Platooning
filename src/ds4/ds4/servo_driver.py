@@ -19,6 +19,7 @@ class ServoController(Node):
         self.pin = self.get_parameter('gpio_pin').value
         min_p = self.get_parameter('min_pulse').value
         max_p = self.get_parameter('max_pulse').value
+        self.middle_offset = self.get_parameter('middle_offset').value
         
         
         # --- Servo Range ---
