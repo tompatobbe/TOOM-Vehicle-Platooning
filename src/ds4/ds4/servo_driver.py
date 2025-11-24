@@ -3,7 +3,6 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
 from gpiozero import AngularServo
-# CHANGED: Import the correct factory for better performance
 from gpiozero.pins.pigpio import PiGPIOFactory 
 
 class ServoController(Node):
@@ -46,7 +45,6 @@ class ServoController(Node):
             self.get_logger().info(f'Servo set to middle position: {middle_angle:.2f}°')
         except Exception as e:
             self.get_logger().error(f'Failed to init hardware: {e}')
-            # Fallback message helpful for debugging
             self.get_logger().error('Did you run "sudo pigpiod"?')
             self.servo = None
 
@@ -58,13 +56,24 @@ class ServoController(Node):
             10)
         
     def listener_callback(self, msg):
-        # compute servo command preserving current middle offset
-        target_angle = msg.data + self.middle_offset
+        # --- THE FIX: INVERT STEERING ---
+        # Formula: (Max + Min) - Input = Inverted Angle
+        # Example: (100 + 0) - 10 = 90 (Left becomes Right)
+        inverted_angle = (self.max_angle + self.min_angle) - msg.data
+        
+        # Add offset (Trim)
+        target_angle = inverted_angle + self.middle_offset
+        
         if self.servo:
+            # Safety Clamp
             target_angle = max(self.min_angle, min(self.max_angle, target_angle))
             self.servo.angle = target_angle
-            # show relative angle with center as 0 (plus/minus around middle)
-            displayed = self.middle_offset
+            
+            # --- LOGGING FIX ---
+            # Calculate how far we are from the physical center (50 deg)
+            physical_center = (self.min_angle + self.max_angle) / 2
+            displayed = target_angle - physical_center
+            
             self.get_logger().info(f'Angle: {target_angle:.2f}° | Relative: {displayed:+.2f}°')
 
 

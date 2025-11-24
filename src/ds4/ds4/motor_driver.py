@@ -4,7 +4,6 @@ from rclpy.node import Node
 from std_msgs.msg import Float32
 import pigpio
 import time
-import math
 
 class MotorTester(Node):
     def __init__(self):
@@ -14,72 +13,95 @@ class MotorTester(Node):
         self.declare_parameter('gpio_pin', 13)
         self.pin = self.get_parameter('gpio_pin').get_parameter_value().integer_value
         
-        # Safety Limit: 0.50 means max power is limited to 50%
-        # 20% might be too weak to overcome the motor's deadzone/friction.
-        self.declare_parameter('max_power_limit', 0.25)
+        self.declare_parameter('max_power_limit', 0.50) # Increased slightly for reverse torque
         self.power_limit = self.get_parameter('max_power_limit').get_parameter_value().double_value
 
-        self.get_logger().info(f"Initializing Motor Driver on GPIO {self.pin} with Max Power {self.power_limit*100}%")
+        self.get_logger().info(f"Initializing Motor Driver on GPIO {self.pin}...")
 
         # --- Hardware Setup ---
         self.pi = pigpio.pi()
         if not self.pi.connected:
-            self.get_logger().error("Could not connect to pigpio daemon! Did you run 'sudo pigpiod'?")
+            self.get_logger().error("Could not connect to pigpio daemon!")
             exit()
 
         self.NEUTRAL_PW = 1500
 
-        # --- Subscriber ---
-        # Listens for a float between -1.0 and 1.0
-        self.subscription = self.create_subscription(
+        # --- State Variables ---
+        # We need to store these because callbacks happen independently
+        self.current_fwd = 0.0
+        self.current_rev = 0.0
+
+        # --- Subscribers ---
+        
+        # 1. Forward Topic
+        self.sub_fwd = self.create_subscription(
             Float32,
             'motor_throttle',
-            self.listener_callback,
+            self.fwd_callback,
+            10)
+            
+        # 2. Reverse Topic
+        self.sub_rev = self.create_subscription(
+            Float32,
+            'motor_reverse',
+            self.rev_callback,
             10)
 
         # Initial Hardware setup
         self.pi.set_mode(self.pin, pigpio.OUTPUT)
-        self.pi.set_servo_pulsewidth(self.pin, self.NEUTRAL_PW) # Initialize at Neutral to Arm ESC
-        
-        # Give it a moment to arm physically
+        self.pi.set_servo_pulsewidth(self.pin, self.NEUTRAL_PW)
         time.sleep(2.0)
-        self.get_logger().info("ESC Initialized. Ready for topics.")
+        self.get_logger().info("ESC Initialized. Ready.")
 
-    def set_speed(self, pulse_width):
-        """Safely writes the pulse width to the ESC"""
-        # Hard limits for standard ESCs (1000-2000)
-        pulse_width = max(1000, min(pulse_width, 2000))
-        self.pi.set_servo_pulsewidth(self.pin, pulse_width)
+    def fwd_callback(self, msg):
+        """Updates the forward value and triggers motor update"""
+        self.current_fwd = msg.data
+        self.update_motor_output()
 
-    def listener_callback(self, msg):
-        # 1. Clamp input to -1.0 to 1.0 for safety
-        input_throttle = max(-1.0, min(msg.data, 1.0))
+    def rev_callback(self, msg):
+        """Updates the reverse value and triggers motor update"""
+        self.current_rev = msg.data
+        self.update_motor_output()
+
+    def update_motor_output(self):
+        """Combines Forward and Reverse inputs into one ESC command"""
         
-        # 2. Apply Power Limit (scaling)
-        # If limit is 0.2, input 1.0 becomes 0.2
-        scaled_throttle = input_throttle * self.power_limit
+        # Logic: Net Speed = Forward Input - Reverse Input
+        # If R2 is pressed (1.0) and L2 is empty (0.0) -> Result 1.0
+        # If L2 is pressed (1.0) and R2 is empty (0.0) -> Result -1.0
+        net_input = self.current_fwd - self.current_rev
+
+        # Clamp to -1.0 to 1.0 just in case
+        net_input = max(-1.0, min(net_input, 1.0))
+
+        # Apply Power Limit
+        # Example: If limit is 0.5:
+        # Input 1.0 -> 0.5
+        # Input -1.0 -> -0.5
+        scaled_throttle = net_input * self.power_limit
         
-        # 3. Convert to Pulse Width
-        # 0.0 -> 1500
-        # 1.0 -> 1500 + 500 = 2000
-        # -1.0 -> 1500 - 500 = 1000
+        # Convert to Pulse Width
+        # 0.0  -> 1500
+        # 0.5  -> 1500 + 250 = 1750
+        # -0.5 -> 1500 - 250 = 1250
         target_pw = self.NEUTRAL_PW + (scaled_throttle * 500)
         
         self.set_speed(int(target_pw))
         
-        # Log the output so we can debug deadzones
-        self.get_logger().info(f"Input: {input_throttle:.2f} -> PW: {int(target_pw)}")
+        # Debug logging
+        # self.get_logger().info(f"Fwd:{self.current_fwd:.2f} Rev:{self.current_rev:.2f} -> PW:{int(target_pw)}")
+
+    def set_speed(self, pulse_width):
+        pulse_width = max(1000, min(pulse_width, 2000))
+        self.pi.set_servo_pulsewidth(self.pin, pulse_width)
 
     def cleanup(self):
-        """Stop motor on shutdown"""
-        self.get_logger().info("Stopping Motor...")
-        self.pi.set_servo_pulsewidth(self.pin, 0) # 0 kills the signal
+        self.pi.set_servo_pulsewidth(self.pin, 0)
         self.pi.stop()
 
 def main(args=None):
     rclpy.init(args=args)
     node = MotorTester()
-    
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
