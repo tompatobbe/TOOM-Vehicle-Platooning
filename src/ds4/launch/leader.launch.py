@@ -37,9 +37,20 @@ def generate_launch_description():
         # ]
     )
 
+    node3 = Node(
+        package='ds4',       # Can be the same package as Node 1
+        executable='motor_driver',
+        name='motor_driver',
+        output='screen',
+        # remappings=[                  # (Optional) Remap topics if necessary
+        #     ('/old_topic', '/new_topic')
+        # ]
+    )
+
     # --- RETURN LAUNCH DESCRIPTION ---
     return LaunchDescription([
         node1,
         node2,
-        node3
+        node3,
+        node4
     ])
