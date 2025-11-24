@@ -11,7 +11,7 @@ class MotorTester(Node):
         
         # --- Parameters ---
         # Change this to the BCM GPIO pin you are using (e.g., Pin 12 is GPIO 18)
-        self.declare_parameter('gpio_pin', 13)
+        self.declare_parameter('gpio_pin', 18)
         self.pin = self.get_parameter('gpio_pin').get_parameter_value().integer_value
 
         self.get_logger().info(f"Initializing Motor Tester on GPIO {self.pin}")
@@ -28,8 +28,13 @@ class MotorTester(Node):
         # 1000us is full reverse
         # 2000us is full forward
         self.NEUTRAL_PW = 1500
-        self.MAX_FWD_PW = 2000
-        self.MAX_REV_PW = 1000
+
+        # SAFETY LIMIT: Only go to 15% power for testing
+        # Full range is +/- 500. 15% is +/- 75.
+        self.POWER_LIMIT = 0.15 
+        
+        self.MAX_FWD_PW = 1500 + int(500 * self.POWER_LIMIT)
+        self.MAX_REV_PW = 1500 - int(500 * self.POWER_LIMIT)
         
         # State variables for the test sequence
         self.test_state = 'ARMING'
@@ -66,7 +71,7 @@ class MotorTester(Node):
         # --- PHASE 2: RAMP FORWARD ---
         elif self.test_state == 'RAMP_UP':
             # Increment pulse width
-            self.current_pw += 20 # Step size
+            self.current_pw += 5 # Reduced step size (was 20) for slower acceleration
             
             if self.current_pw >= self.MAX_FWD_PW:
                 self.current_pw = self.MAX_FWD_PW
@@ -78,7 +83,7 @@ class MotorTester(Node):
 
         # --- PHASE 3: RAMP DOWN TO NEUTRAL ---
         elif self.test_state == 'RAMP_DOWN':
-            self.current_pw -= 20
+            self.current_pw -= 5 # Reduced step size
             
             if self.current_pw <= self.NEUTRAL_PW:
                 self.current_pw = self.NEUTRAL_PW
@@ -97,7 +102,7 @@ class MotorTester(Node):
 
         # --- PHASE 5: RAMP REVERSE ---
         elif self.test_state == 'RAMP_REVERSE':
-            self.current_pw -= 20
+            self.current_pw -= 5 # Reduced step size
             
             if self.current_pw <= self.MAX_REV_PW:
                 self.current_pw = self.MAX_REV_PW
