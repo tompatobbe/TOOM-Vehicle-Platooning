@@ -43,7 +43,9 @@ class JoystickController(Node):
     def listener_callback(self, msg):
         # --- 1. SERVO CONTROL (Left Stick L/R) ---
         if len(msg.axes) > 0:
-            axis_val = msg.axes[0] 
+            # Add a negative sign here to invert the input
+            axis_val = -msg.axes[0] 
+            
             if abs(axis_val) > 0.05: 
                 angle_range = self.max_servo_angle - self.min_servo_angle
                 self.current_angle = self.min_servo_angle + (angle_range * (axis_val + 1) / 2)
