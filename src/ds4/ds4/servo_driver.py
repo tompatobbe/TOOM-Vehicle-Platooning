@@ -65,13 +65,10 @@ class ServoController(Node):
             # show relative angle with center as 0 (plus/minus around middle)
             middle_angle = (self.min_angle + self.max_angle) / 2
             #displayed = target_angle - middle_angle
-            #self.get_logger().info(f'Moving to (servo): {middle_angle + displayed:.2f}°  |  relative: {displayed:+.2f}°')
-
+            
             target_angle = max(self.min_angle, min(self.max_angle, target_angle))
             self.servo.angle = target_angle
-
-
-            self.get_logger().info(f'Moving to (servo): {target_angle:.2f}°')
+            self.get_logger().info(f'Moving to (servo): {target_angle:.2f}°  |  relative: {middle_offset:+.2f}°')
 
 
     def cleanup(self):
