@@ -56,7 +56,7 @@ class ServoController(Node):
             10)
         
     def listener_callback(self, msg):
-        target_angle = 100 - msg.data
+        target_angle = 60 - msg.data
         
         
         if self.servo:
