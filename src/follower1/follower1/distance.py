@@ -100,3 +100,9 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
+
+    #sudo pigpiod
+    #sudo adduser $USER gpio
+    #sudo chown root:gpio /dev/gpiomem
+    #sudo chmod g+rw /dev/gpiomem
