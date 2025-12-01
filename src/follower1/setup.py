@@ -25,7 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'servo_driver = follower1.servo_driver:main',
-            'distance = follower1.distance:sonar_publisher',
+            'distance = follower1.distance:main',
         ],
     },
 )
