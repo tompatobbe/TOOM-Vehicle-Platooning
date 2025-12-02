@@ -11,8 +11,8 @@ class UltrasonicNode(Node):
         super().__init__('hcsr04_sensor')
         
         # --- Configuration ---
-        self.gpio_trigger = 6
-        self.gpio_echo = 5
+        self.gpio_trigger = 5
+        self.gpio_echo = 6
         self.min_range = 0.02
         self.max_range = 4.0
         self.fov = 0.26  # Approx 15 degrees
@@ -109,3 +109,10 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
+
+
+    # Remeber
+    # sudo usermod -aG gpio $USER
+    # sudo chown root:gpio /dev/gpiomem
+    # sudo chmod g+rw /dev/gpiomem
