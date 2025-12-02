@@ -24,6 +24,10 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'controller = follower2.controller:main',
+            'distance = follower2.distance:main',
+            'motor_driver = follower2.motor_driver:main',
+            'servo_driver = follower2.servo_driver:main',
         ],
     },
 )
