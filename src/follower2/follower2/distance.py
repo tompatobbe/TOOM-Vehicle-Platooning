@@ -11,8 +11,8 @@ class UltrasonicNode(Node):
         super().__init__('hcsr04_sensor')
         
         # --- Configuration ---
-        self.gpio_trigger = 23
-        self.gpio_echo = 24
+        self.gpio_trigger = 6
+        self.gpio_echo = 5
         self.min_range = 0.02
         self.max_range = 4.0
         self.fov = 0.26  # Approx 15 degrees
