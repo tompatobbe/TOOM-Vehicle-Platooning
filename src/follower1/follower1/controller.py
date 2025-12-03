@@ -30,7 +30,7 @@ class PIDControllerNode(Node):
         self.pid = PID(kp, ki, kd, self.dt, pid_min=-1.0, pid_max=1.0)
 
         # --- State Variables ---
-        self.target_value = 0.0
+        self.target_value = 0.15
         self.current_value = 0.0
         self.last_update_time = self.get_clock().now()
 
