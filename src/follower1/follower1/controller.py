@@ -60,28 +60,28 @@ class PIDControllerNode(Node):
         """Updates the current value (Process Variable)"""
         self.current_value = msg.data
 
-        def control_loop(self):
-            """Calculates PID output and publishes to motor driver"""
-            
-            # Calculate Error
-            error = self.target_value - self.current_value
+    def control_loop(self):
+        """Calculates PID output and publishes to motor driver"""
+        
+        # Calculate Error
+        error = self.target_value - self.current_value
 
-            # Get Control Output from PID Class
-            output = self.pid.update(error)
+        # Get Control Output from PID Class
+        output = self.pid.update(error)
 
-            # Log the current state, PID constants, and calculated throttle
-            self.get_logger().info(
-                f"Throttle: {output:.3f} | Error: {error:.3f} | "
-                f"Kp: {self.pid.Kp} Ki: {self.pid.Ki} Kd: {self.pid.Kd}"
-            )
+        # Log the current state, PID constants, and calculated throttle
+        self.get_logger().info(
+            f"Throttle: {output:.3f} | Error: {error:.3f} | "
+            f"Kp: {self.pid.Kp} Ki: {self.pid.Ki} Kd: {self.pid.Kd}"
+        )
 
-            # Publish to Motor Driver
-            # Note: Your motor driver logic is: net = fwd - rev.
-            # Sending a negative value to 'motor_throttle' (fwd) results in a negative net,
-            # effectively driving the motor in reverse.
-            msg = Float32()
-            msg.data = float(output)
-            self.pub_throttle.publish(msg)
+        # Publish to Motor Driver
+        # Note: Your motor driver logic is: net = fwd - rev.
+        # Sending a negative value to 'motor_throttle' (fwd) results in a negative net,
+        # effectively driving the motor in reverse.
+        msg = Float32()
+        msg.data = float(output)
+        self.pub_throttle.publish(msg)
 
 def main(args=None):
     rclpy.init(args=args)
