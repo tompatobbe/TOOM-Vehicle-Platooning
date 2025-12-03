@@ -89,7 +89,7 @@ class MotorTester(Node):
         self.set_speed(int(target_pw))
         
         # Debug logging
-        # self.get_logger().info(f"Fwd:{self.current_fwd:.2f} Rev:{self.current_rev:.2f} -> PW:{int(target_pw)}")
+        self.get_logger().info(f"Fwd:{self.current_fwd:.2f} Rev:{self.current_rev:.2f} -> PW:{int(target_pw)}")
 
     def set_speed(self, pulse_width):
         pulse_width = max(1000, min(pulse_width, 2000))
