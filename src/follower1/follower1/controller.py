@@ -27,7 +27,7 @@ class PIDControllerNode(Node):
         # Initialize PID Class
         # We clamp output between -1.0 and 1.0 because the motor driver 
         # expects generic float inputs which it then scales by its own power_limit.
-        self.pid = PID(kp, ki, kd, self.dt, pid_min=-1.0, pid_max=1.0)
+        self.pid = PID(kp, ki, kd, self.dt, pid_min=0.0, pid_max=1.0)
 
         # --- State Variables ---
         self.target_value = 0.15
