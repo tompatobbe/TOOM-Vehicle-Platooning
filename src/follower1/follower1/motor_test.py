@@ -4,7 +4,7 @@ from std_msgs.msg import Float32
 import RPi.GPIO as GPIO
 
 # Constants for WP 1040 ESC (Standard Servo Protocol)
-PWM_PIN = 18          # Change to your actual GPIO pin (BCM numbering)
+PWM_PIN = 13          # Change to your actual GPIO pin (BCM numbering)
 PWM_FREQ = 50         # 50Hz is standard for ESCs
 DUTY_CYCLE_STOP = 7.5 # 1.5ms pulse / 20ms period * 100 = 7.5%
 DUTY_CYCLE_MAX = 10.0 # 2.0ms pulse / 20ms period * 100 = 10.0%
