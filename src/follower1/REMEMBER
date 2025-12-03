@@ -1,17 +1,17 @@
-    # Instructions to install pigpio library and daemon for servo:  
-    # sudo apt install pigpio-tools
-    # sudo apt install build-essential unzip
-    # unzip master.zip
-    # cd pigpio-master
-    # make
-    # sudo make install
-    # sudo pigpiod
+Instructions to install pigpio library and daemon for servo:  
+sudo apt install pigpio-tools
+sudo apt install build-essential unzip
+unzip master.zip
+cd pigpio-master
+make
+sudo make install
+sudo pigpiod
 
 
 
 
 
-    # Instructions for motor driver:
-    # sudo usermod -aG gpio $USER
-    # sudo chown root:gpio /dev/gpiomem
-    # sudo chmod g+rw /dev/gpiomem
+# Instructions for motor driver:
+sudo usermod -aG gpio $USER
+sudo chown root:gpio /dev/gpiomem
+sudo chmod g+rw /dev/gpiomem
