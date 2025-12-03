@@ -1,114 +1,86 @@
-#!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
-import pigpio
-import time
+import RPi.GPIO as GPIO
 
-class MotorTester(Node):
+# Constants for WP 1040 ESC (Standard Servo Protocol)
+PWM_PIN = 18          # Change to your actual GPIO pin (BCM numbering)
+PWM_FREQ = 50         # 50Hz is standard for ESCs
+DUTY_CYCLE_STOP = 7.5 # 1.5ms pulse / 20ms period * 100 = 7.5%
+DUTY_CYCLE_MAX = 10.0 # 2.0ms pulse / 20ms period * 100 = 10.0%
+DUTY_CYCLE_MIN = 5.0  # 1.0ms pulse / 20ms period * 100 = 5.0%
+
+class WP1040Driver(Node):
     def __init__(self):
-        super().__init__('motor_driver_node')
+        super().__init__('wp1040_driver')
         
-        # --- Parameters ---
-        self.declare_parameter('gpio_pin', 13)
-        self.pin = self.get_parameter('gpio_pin').get_parameter_value().integer_value
+        # --- 1. GPIO Setup ---
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(PWM_PIN, GPIO.OUT)
         
-        self.declare_parameter('max_power_limit', 0.50) # Increased slightly for reverse torque
-        self.power_limit = self.get_parameter('max_power_limit').get_parameter_value().double_value
-
-        self.get_logger().info(f"Initializing Motor Driver on GPIO {self.pin}...")
-
-        # --- Hardware Setup ---
-        self.pi = pigpio.pi()
-        if not self.pi.connected:
-            self.get_logger().error("Could not connect to pigpio daemon!")
-            exit()
-
-        self.NEUTRAL_PW = 1500
-
-        # --- State Variables ---
-        # We need to store these because callbacks happen independently
-        self.current_fwd = 0.0
-        self.current_rev = 0.0
-
-        # --- Subscribers ---
+        # Start PWM at 50Hz
+        self.pwm = GPIO.PWM(PWM_PIN, PWM_FREQ)
         
-        # 1. Forward Topic
-        self.sub_fwd = self.create_subscription(
+        # Initialize ESC:
+        # Most ESCs need to see a "Neutral" signal to arm for safety.
+        self.get_logger().info('Arming ESC...')
+        self.pwm.start(DUTY_CYCLE_STOP) 
+        
+        # --- 2. ROS Subscriber ---
+        # Subscription to 'throttle' topic (Float32, 0.0 to 1.0)
+        self.subscription = self.create_subscription(
             Float32,
-            'motor_throttle',
-            self.fwd_callback,
-            10)
-            
-        # 2. Reverse Topic
-        self.sub_rev = self.create_subscription(
-            Float32,
-            'motor_reverse',
-            self.rev_callback,
-            10)
-
-        # Initial Hardware setup
-        self.pi.set_mode(self.pin, pigpio.OUTPUT)
-        self.pi.set_servo_pulsewidth(self.pin, self.NEUTRAL_PW)
-        time.sleep(2.0)
-        self.get_logger().info("ESC Initialized. Ready.")
-
-    def fwd_callback(self, msg):
-        """Updates the forward value and triggers motor update"""
-        self.current_fwd = msg.data
-        self.update_motor_output()
-
-    def rev_callback(self, msg):
-        """Updates the reverse value and triggers motor update"""
-        self.current_rev = msg.data
-        self.update_motor_output()
-
-    def update_motor_output(self):
-        """Combines Forward and Reverse inputs into one ESC command"""
+            'throttle',
+            self.throttle_callback,
+            10
+        )
         
-        # Logic: Net Speed = Forward Input - Reverse Input
-        # If R2 is pressed (1.0) and L2 is empty (0.0) -> Result 1.0
-        # If L2 is pressed (1.0) and R2 is empty (0.0) -> Result -1.0
-        net_input = self.current_fwd - self.current_rev
+        self.get_logger().info('WP 1040 Driver Node Started. Listening on /throttle')
 
-        # Clamp to -1.0 to 1.0 just in case
-        net_input = max(-1.0, min(net_input, 1.0))
-
-        # Apply Power Limit
-        # Example: If limit is 0.5:
-        # Input 1.0 -> 0.5
-        # Input -1.0 -> -0.5
-        scaled_throttle = net_input * self.power_limit
+    def throttle_callback(self, msg):
+        """
+        Receives throttle value between 0.0 and 1.0
+        Maps 0.0 -> Stop (Neutral)
+        Maps 1.0 -> Full Speed Forward
+        """
+        throttle_input = msg.data
         
-        # Convert to Pulse Width
-        # 0.0  -> 1500
-        # 0.5  -> 1500 + 250 = 1750
-        # -0.5 -> 1500 - 250 = 1250
-        target_pw = self.NEUTRAL_PW + (scaled_throttle * 500)
-        
-        self.set_speed(int(target_pw))
-        
-        # Debug logging
-        self.get_logger().info(f"Fwd:{self.current_fwd:.2f} Rev:{self.current_rev:.2f} -> PW:{int(target_pw)}")
+        # Clamp input between 0.0 and 1.0 for safety
+        throttle_input = max(0.0, min(1.0, throttle_input))
 
-    def set_speed(self, pulse_width):
-        pulse_width = max(1000, min(pulse_width, 2000))
-        self.pi.set_servo_pulsewidth(self.pin, pulse_width)
+        # --- 3. Calculate Duty Cycle ---
+        # Linear mapping: Output = Neutral + (Input * (Max - Neutral))
+        # This maps 0.0 to 7.5% (Stop) and 1.0 to 10.0% (Full Forward)
+        target_duty_cycle = DUTY_CYCLE_STOP + (throttle_input * (DUTY_CYCLE_MAX - DUTY_CYCLE_STOP))
+        
+        # Apply to hardware
+        self.pwm.ChangeDutyCycle(target_duty_cycle)
+        
+        # Debug logging (optional, comment out for high-speed loops)
+        # self.get_logger().debug(f'Input: {throttle_input:.2f} -> Duty: {target_duty_cycle:.2f}')
 
-    def cleanup(self):
-        self.pi.set_servo_pulsewidth(self.pin, 0)
-        self.pi.stop()
+    def stop_motor(self):
+        """Safety stop"""
+        self.pwm.ChangeDutyCycle(DUTY_CYCLE_STOP)
+
+    def __del__(self):
+        """Cleanup on shutdown"""
+        self.stop_motor()
+        self.pwm.stop()
+        GPIO.cleanup()
+        self.get_logger().info('GPIO Cleaned up.')
 
 def main(args=None):
     rclpy.init(args=args)
-    node = MotorTester()
+    
+    driver_node = WP1040Driver()
+
     try:
-        rclpy.spin(node)
+        rclpy.spin(driver_node)
     except KeyboardInterrupt:
         pass
     finally:
-        node.cleanup()
-        node.destroy_node()
+        driver_node.destroy_node()
         rclpy.shutdown()
 
 if __name__ == '__main__':
