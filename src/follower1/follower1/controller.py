@@ -65,7 +65,6 @@ class PIDControllerNode(Node):
             
             # Calculate Error
             error = self.target_value - self.current_value
-            error = - error  # Invert error if necessary (depends on system setup)
 
             # Get Control Output from PID Class
             output = self.pid.update(error)
