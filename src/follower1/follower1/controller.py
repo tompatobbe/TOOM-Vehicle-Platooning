@@ -13,7 +13,7 @@ class PIDControllerNode(Node):
         # --- Parameters (Tunable via command line or yaml) ---
         self.declare_parameter('kp', 1.0)
         self.declare_parameter('ki', 0.0)
-        self.declare_parameter('kd', 0.06)
+        self.declare_parameter('kd', 0.2)
         self.declare_parameter('frequency', 20.0) # Hz
 
         # --- ENABLE DYNAMIC UPDATES ---
@@ -33,7 +33,7 @@ class PIDControllerNode(Node):
         self.pid = PID(kp, ki, kd, self.dt, pid_min=0.0, pid_max=1.0)
 
         # --- State Variables ---
-        self.target_value = 0.10
+        self.target_value = 0.5
         self.current_value = 0.0
         self.last_update_time = self.get_clock().now()
 
