@@ -44,7 +44,7 @@ class MotorTester(Node):
         # 2. Reverse Topic
         self.sub_rev = self.create_subscription(
             Float32,
-            'motor_reverse',
+            'follower1/motor_reverse',
             self.rev_callback,
             10)
 

@@ -51,7 +51,7 @@ class ServoController(Node):
         # --- ROS Communication ---
         self.subscription = self.create_subscription(
             Float32,
-            '/servo/angle',
+            'follower1/servo/angle',
             self.listener_callback,
             10)
         

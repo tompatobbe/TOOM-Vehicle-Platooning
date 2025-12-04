@@ -26,8 +26,8 @@ class MotorTeleop(Node):
         super().__init__('motor_teleop_node')
         
         # Publishers
-        self.pub_throttle = self.create_publisher(Float32, '/motor_throttle', 10)
-        self.pub_reverse = self.create_publisher(Float32, '/motor_reverse', 10)
+        self.pub_throttle = self.create_publisher(Float32, 'follower1/motor_throttle', 10)
+        self.pub_reverse = self.create_publisher(Float32, 'follower1/motor_reverse', 10)
         
         self.speed = 0.0
         self.step = 0.1
