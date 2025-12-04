@@ -12,8 +12,8 @@ class PIDControllerNode(Node):
 
         # --- Parameters (Tunable via command line or yaml) ---
         self.declare_parameter('kp', 1.0)
-        self.declare_parameter('ki', 0.0)
-        self.declare_parameter('kd', 0.2)
+        self.declare_parameter('ki', 0.001)
+        self.declare_parameter('kd', 0.0)
         self.declare_parameter('frequency', 20.0) # Hz
 
         # --- ENABLE DYNAMIC UPDATES ---
