@@ -11,7 +11,8 @@ sudo pigpiod
 
 
 
-# Instructions for motor driver:
+# Instructions for GPIO setup:
 sudo usermod -aG gpio $USER
 sudo chown root:gpio /dev/gpiomem
 sudo chmod g+rw /dev/gpiomem
+
