@@ -3,22 +3,21 @@ import rclpy
 from rclpy.node import Node
 import spidev
 import struct
-import time
 
 class Pixy2SpiNode(Node):
     def __init__(self):
         super().__init__('pixy2_driver')
         
+        # --- CONFIGURATION ---
         self.spi_bus = 0
         self.spi_device = 0
-        self.target_signature = 1  
         
         try:
             self.spi = spidev.SpiDev()
             self.spi.open(self.spi_bus, self.spi_device)
             self.spi.max_speed_hz = 2000000 
             self.spi.mode = 0b00
-            self.get_logger().info("SPI Initialized. Waiting for blocks...")
+            self.get_logger().info("Pixy2 Driver Running. Polling for objects...")
         except Exception as e:
             self.get_logger().error(f"SPI Error: {e}")
             return
@@ -26,17 +25,20 @@ class Pixy2SpiNode(Node):
         self.timer = self.create_timer(0.04, self.update)
 
     def update(self):
-        # Request blocks: [Sync, Sync, Type=32, Len=2, Sig, MaxBlocks]
-        req = [0xae, 0xc1, 0x20, 0x02, self.target_signature, 0x02]
+        # Request blocks: [Sync, Sync, Type=32, Len=2, Sig=1, MaxBlocks=2]
+        # (Sig=255 requests ALL signatures)
+        req = [0xae, 0xc1, 0x20, 0x02, 255, 0x02]
+        
         try:
             self.spi.xfer2(req)
         except OSError:
-            return # Ignore momentary SPI busy errors
+            return 
 
         # Hunt for Sync (0xaf, 0xc1)
         for _ in range(50):
             try:
-                if self.spi.readbytes(1)[0] == 0xaf:
+                b = self.spi.readbytes(1)[0]
+                if b == 0xaf:
                     if self.spi.readbytes(1)[0] == 0xc1:
                         self.process_packet()
                         return
@@ -57,55 +59,38 @@ class Pixy2SpiNode(Node):
         self.parse_blocks(payload)
 
     def parse_blocks(self, payload):
-        # We determine block size based on payload length
-        # Standard Pixy2 block is 14 bytes. 
-        # But if you see errors about 12 bytes, we can adapt.
+        # Standard Pixy2 block is 14 bytes.
+        BLOCK_SIZE = 14 
         
-        if len(payload) % 14 == 0:
-            block_size = 14
-        elif len(payload) % 12 == 0:
-            block_size = 12
-        else:
-            # If payload is 20 bytes, that's weird. Just fallback to 14.
-            block_size = 14
-
-        num_blocks = len(payload) // block_size
+        # Determine how many full blocks we have
+        num_blocks = len(payload) // BLOCK_SIZE
         
         for i in range(num_blocks):
-            start = i * block_size
-            end = start + block_size
-            block_data = bytearray(payload[start:end])
-
+            start_idx = i * BLOCK_SIZE
+            
+            # --- THE FIX ---
+            # Instead of requiring an exact buffer match, we use 'unpack_from'.
+            # We only care about the first 12 bytes (Sig, X, Y, W, H, Angle).
+            # We safely ignore the last 2 bytes (Index, Age) to prevent errors.
+            
             try:
-                # --- AUTO-DETECT FORMAT ---
-                if len(block_data) == 14:
-                    # Full format: Sig, X, Y, W, H, Angle, Index, Age
-                    # < = Little Endian
-                    # H = UShort(2), h = Short(2), B = Byte(1)
-                    # Total: 2+2+2+2+2+2+1+1 = 14
-                    sig, x, y, w, h, angle, idx, age = struct.unpack('<HHHHhBB', block_data)
-                    self.get_logger().info(f"Target: X={x}, Y={y} | W={w}, H={h}")
+                # < = Little Endian
+                # H = unsigned short (2 bytes)
+                # h = signed short (2 bytes)
+                # Format: Sig(H), X(H), Y(H), W(H), H(H), Angle(h) = 12 bytes
+                data = struct.unpack_from('<HHHHh', payload, offset=start_idx)
                 
-                elif len(block_data) == 12:
-                    # Short format (Missing Index/Age?): Sig, X, Y, W, H, Angle
-                    # Total: 2+2+2+2+2+2 = 12
-                    sig, x, y, w, h, angle = struct.unpack('<HHHHh', block_data)
-                    self.get_logger().info(f"Target (Short): X={x}, Y={y} | W={w}, H={h}")
-
+                sig, x, y, w, h, angle = data
+                
+                # Print to terminal
+                self.get_logger().info(f"Detected: Sig={sig} X={x} Y={y} W={w} H={h}")
+                
             except struct.error as e:
-                # This prints exactly what mismatched so we can debug
-                self.get_logger().warn(f"Struct Error: {e} | Buffer Size: {len(block_data)}")
+                self.get_logger().warn(f"Parsing Error: {e}")
 
 def main(args=None):
     rclpy.init(args=args)
     node = Pixy2SpiNode()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
-
-if __name__ == '__main__':
-    main()
+    except KeyboardInterrupt
