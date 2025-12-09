@@ -39,8 +39,8 @@ def generate_launch_description():
 
     node4 = Node(
         package='follower1',       # Can be the same package as Node 1
-        executable='pix2_driver',
-        name='pix2_driver',
+        executable='pixy2_driver',
+        name='pixy2_driver',
         output='screen',
         # remappings=[                  # (Optional) Remap topics if necessary
         #     ('/old_topic', '/new_topic')
