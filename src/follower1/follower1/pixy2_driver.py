@@ -92,7 +92,7 @@ class Pixy2SpiNode(Node):
                 # If X=0 (Far Left), Error=157.5. Val = 157.5*0.3 + 10 = ~57. Servo = 60-57 = 3 deg.
                 # If X=315 (Far Right), Error=-157.5. Val = -157.5*0.3 + 10 = ~-37. Servo = 60-(-37) = 97 deg.
                 kp = 0.2
-                control_val = (error * kp) #+ 10.0
+                #control_val = (error * kp) #+ 10.0
 
                 # Publish
                 msg = Float32()
