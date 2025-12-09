@@ -83,6 +83,7 @@ class Pixy2SpiNode(Node):
                 center_x = 170
                 # Positive error means object is to the left (X < 157.5)
                 error = center_x - x 
+                error = - error  # Invert to match servo direction
                 
                 # Gain (Kp): Maps pixel error to angle. 0.3 is a standard starting point.
                 # If X=0 (Far Left), Error=157.5. Val = 157.5*0.3 + 10 = ~57. Servo = 60-57 = 3 deg.
