@@ -1,24 +1,17 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32  # CHANGED: Needs to match ServoController input
 import spidev
 import struct
-from collections import deque  # CHANGED: Import deque for sliding window
 
 class Pixy2SpiNode(Node):
     def __init__(self):
         super().__init__('pixy2_driver')
         
+        # CHANGED: Update topic and type to match the Servo Controller
         self.publisher_ = self.create_publisher(Float32, 'follower1/servo/angle', 10)
         
-        # --- CHANGED: Sliding Average Setup ---
-        # "maxlen" determines how many frames we average. 
-        # Higher = smoother but more lag. Lower = faster but more jitter.
-        self.window_size = 5 
-        self.x_history = deque(maxlen=self.window_size)
-        # --------------------------------------
-
         # SPI Setup
         self.spi_bus = 0
         self.spi_device = 0
@@ -28,7 +21,7 @@ class Pixy2SpiNode(Node):
             self.spi.open(self.spi_bus, self.spi_device)
             self.spi.max_speed_hz = 2000000
             self.spi.mode = 0b00
-            self.get_logger().info(f"Pixy2 Driver: SPI Connected. Smoothing window: {self.window_size}")
+            self.get_logger().info("Pixy2 Driver: SPI Connected. Scanning for blocks...")
         except Exception as e:
             self.get_logger().error(f"SPI Failed: {e}")
             return
@@ -78,15 +71,8 @@ class Pixy2SpiNode(Node):
                 # Format: H(Sig) H(X) H(Y) H(W) H(H) h(Angle) -> 6 items
                 data = struct.unpack_from('<HHHHHh', payload, offset=0)
                 
-                sig, raw_x, y, w, h, angle = data
+                sig, x, y, w, h, angle = data
                 
-                # --- CHANGED: Apply Sliding Average ---
-                self.x_history.append(raw_x)
-                
-                # Calculate the mean of the values currently in the buffer
-                avg_x = sum(self.x_history) / len(self.x_history)
-                # --------------------------------------
-
                 # --- CALCULATION LOGIC ---
                 # Pixy2 X range is 0 to 315. Center is ~157.
                 # Servo code does: target = 60 - msg.data
@@ -95,10 +81,12 @@ class Pixy2SpiNode(Node):
                 
                 # Proportional Controller (P-Controller)
                 center_x = 170
+                # Positive error means object is to the left (X < 157.5)
+                error = center_x - x 
                 
-                # Use avg_x instead of raw_x for calculation
-                error = center_x - avg_x 
-                
+                # Gain (Kp): Maps pixel error to angle. 0.3 is a standard starting point.
+                # If X=0 (Far Left), Error=157.5. Val = 157.5*0.3 + 10 = ~57. Servo = 60-57 = 3 deg.
+                # If X=315 (Far Right), Error=-157.5. Val = -157.5*0.3 + 10 = ~-37. Servo = 60-(-37) = 97 deg.
                 kp = 0.3
                 control_val = (error * kp) + 10.0
 
@@ -108,7 +96,7 @@ class Pixy2SpiNode(Node):
                 self.publisher_.publish(msg)
 
                 # Print to terminal
-                self.get_logger().info(f"Raw X={raw_x} | Avg X={avg_x:.1f} | Val={control_val:.2f}")
+                self.get_logger().info(f"Target X={x} | Sending Val={control_val:.2f}")
                 
             except struct.error as e:
                 self.get_logger().warn(f"Unpack Error: {e}")
