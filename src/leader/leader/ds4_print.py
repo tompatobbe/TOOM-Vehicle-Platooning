@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
+from std_msgs.msg import Float32
 
 class DS4PrintNode(Node):
     def __init__(self):
@@ -12,6 +13,13 @@ class DS4PrintNode(Node):
             'joy',
             self.listener_callback,
             10)
+        
+        # Publish servo commands
+        self.servo_publisher = self.create_publisher(
+            Float32,
+            '/servo/angle',
+            10)
+        
         self.subscription  # prevent unused variable warning
         self.get_logger().info("Waiting for DualShock 4 input...")
 
@@ -31,6 +39,11 @@ class DS4PrintNode(Node):
         
         self.enabled_buttons = {} 
         self.button_handlers = {}
+        
+        # Servo control parameters
+        self.min_servo_angle = 0
+        self.max_servo_angle = 60
+        self.current_angle = 30  # Start at middle
 
     # Button handler methods (unused)
     def on_cross(self): pass
@@ -51,16 +64,31 @@ class DS4PrintNode(Node):
                     button_name = self.buttons_map.get(i, f"Button {i}")
                     self.get_logger().info(f"Pressed: {button_name}")
 
-        # Print Axis Inputs (ONLY LEFT STICK LEFT/RIGHT)
-        for i, axis_val in enumerate(msg.axes):
-            # Filter: Only allow index 0 (Left Stick L/R)
-            # If it is NOT 0, skip to the next iteration
-            if i != 0:
-                continue
+        # Control servo with Left Stick L/R (axis 0)
+        if len(msg.axes) > 0:
+            axis_val = msg.axes[0]  # Left Stick L/R
+            if abs(axis_val) > 0.05:  # Deadzone filter
+                # Map joystick range [-1, 1] to servo angle range
+                angle_range = self.max_servo_angle - self.min_servo_angle
+                self.current_angle = self.min_servo_angle + (angle_range * (axis_val + 1) / 2)
+            else:
+                # Reset to middle when no input
+                self.current_angle = (self.min_servo_angle + self.max_servo_angle) / 2
+            
+            # Publish servo command
+            servo_msg = Float32()
+            servo_msg.data = self.current_angle
+            self.servo_publisher.publish(servo_msg)
+            
 
-            if abs(axis_val) > 0.1: # Deadzone filter
-                axis_name = self.axes_map.get(i, f"Axis {i}")
-                self.get_logger().info(f"Moving {axis_name}: {axis_val:.2f}")
+        if len(msg.axes) > 5:
+            # Print L2 Analog value (axis 2)
+            R2_val = msg.axes[5]
+
+
+        self.get_logger().info(f"Servo angle: {self.current_angle:.2f}° R2: {R2_val:.2f}")
+
+
 
 def main(args=None):
     rclpy.init(args=args)

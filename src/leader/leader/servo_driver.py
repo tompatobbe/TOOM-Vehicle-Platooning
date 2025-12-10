@@ -3,7 +3,6 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
 from gpiozero import AngularServo
-# CHANGED: Import the correct factory for better performance
 from gpiozero.pins.pigpio import PiGPIOFactory 
 
 class ServoController(Node):
@@ -14,13 +13,16 @@ class ServoController(Node):
         self.declare_parameter('gpio_pin', 12)
         self.declare_parameter('min_pulse', 0.0005)
         self.declare_parameter('max_pulse', 0.0025)
+        self.declare_parameter('middle_offset', 0)
         
         self.pin = self.get_parameter('gpio_pin').value
         min_p = self.get_parameter('min_pulse').value
         max_p = self.get_parameter('max_pulse').value
+        self.middle_offset = self.get_parameter('middle_offset').value
+        
         
         # --- Servo Range ---
-        self.max_angle = 60
+        self.max_angle = 100
         self.min_angle = 0
 
         # --- Hardware Setup ---
@@ -36,25 +38,35 @@ class ServoController(Node):
                 pin_factory=factory
             )
             self.get_logger().info(f'Servo initialized on GPIO {self.pin}')
+        
+            # Set servo to middle position on startup
+            middle_angle = (self.min_angle + self.max_angle) / 2
+            self.servo.angle = middle_angle
+            self.get_logger().info(f'Servo set to middle position: {middle_angle:.2f}°')
         except Exception as e:
             self.get_logger().error(f'Failed to init hardware: {e}')
-            # Fallback message helpful for debugging
             self.get_logger().error('Did you run "sudo pigpiod"?')
             self.servo = None
 
         # --- ROS Communication ---
         self.subscription = self.create_subscription(
             Float32,
-            '/servo/angle',
+            'leader/servo/angle',
             self.listener_callback,
             10)
         
     def listener_callback(self, msg):
-        target_angle = msg.data
+        target_angle = 60 - msg.data
+        
+        
         if self.servo:
+            # Safety Clamp
             target_angle = max(self.min_angle, min(self.max_angle, target_angle))
             self.servo.angle = target_angle
-            self.get_logger().info(f'Moving to: {target_angle:.2f} degrees')
+     
+            
+            self.get_logger().info(f'Angle: {target_angle:.2f}°')
+
 
     def cleanup(self):
         if self.servo:
