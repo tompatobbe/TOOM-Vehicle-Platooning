@@ -24,8 +24,17 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'camera = follower2.camera:main',
+            'controller = follower2.controller:main',
+            'distance = follower2.distance:main',
+            'distance3 = follower2.distance3:main',
             'motor_driver = follower2.motor_driver:main',
             'motor_teleop = follower2.motor_teleop:main',
+            'mpc = follower2.mpc:main',
+            'pixy2_driver = follower2.pixy2_driver:main',
+            'servo_driver = follower2.servo_driver:main',
+            'spi_debug = follower2.spi_debug:main',
+
         ],
     },
 )
