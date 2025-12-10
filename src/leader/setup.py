@@ -10,6 +10,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/launch', ['launch/leader.launch.py']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -24,6 +25,12 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'axis = leader.axis:main',
+            'ds4_print = leader.ds4_print:main',
+            'ds4_pub = leader.ds4_pub:main',
+            'motor_driver = leader.motor_driver:main',
+            'motor_tester = leader.motor_tester:main',
+            'servo_driver = leader.servo_driver:main',
         ],
     },
 )
