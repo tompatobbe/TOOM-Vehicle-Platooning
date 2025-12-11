@@ -76,13 +76,13 @@ class MultiUltrasonicNode(Node):
         timeout_start = time.time()
         while GPIO.input(echo_pin) == 0:
             start_time = time.time()
-            if start_time - timeout_start > 0.04: # Timeout if no echo start (40ms)
+            if start_time - timeout_start > 0.015: # Timeout if no echo start (40ms)
                 return -1.0
 
         # Wait for Echo to go LOW
         while GPIO.input(echo_pin) == 1:
             stop_time = time.time()
-            if stop_time - start_time > 0.04: # Timeout if echo too long (> 6m)
+            if stop_time - start_time > 0.015: # Timeout if echo too long (> 6m)
                 return -1.0
 
         # Calculate distance
