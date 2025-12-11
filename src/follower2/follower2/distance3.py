@@ -16,12 +16,12 @@ class MultiUltrasonicNode(Node):
         self.gpio_echo_c = 27 #6
         
         # 2. Left Sensor (NEW - UPDATE THESE PINS)
-        self.gpio_trig_l = 5 #17 
-        self.gpio_echo_l = 6 #27
+        self.gpio_trig_l = 22 #17 
+        self.gpio_echo_l = 23 #27
         
         # 3. Right Sensor (NEW - UPDATE THESE PINS)
-        self.gpio_trig_r = 22
-        self.gpio_echo_r = 23
+        self.gpio_trig_r = 5 #22
+        self.gpio_echo_r = 6 #23
 
         self.min_range = 0.02
         self.max_range = 4.0
