@@ -2,84 +2,77 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Int32, Float32
-import RPi.GPIO as GPIO
+from gpiozero import Button  # We use Button because it handles Pull-Up/Debounce logic perfectly
 import time
+import signal
 
 class HallEncoderNode(Node):
     def __init__(self):
         super().__init__('hall_encoder_sensor')
         
         # --- Configuration ---
-        self.hall_pin = 4       # Change this to your BCM GPIO pin
-        self.magnets_on_wheel = 1 # How many magnets are on your wheel?
+        self.hall_pin = 4       # BCM 17
+        self.magnets_on_wheel = 1
         
         # --- Variables ---
-        self.tick_count = 0      # Total ticks counted
-        self.prev_tick_count = 0 # For calculating RPM
+        self.tick_count = 0
+        self.prev_tick_count = 0
         self.prev_time = time.time()
 
-        # --- GPIO Setup ---
-        # We match the BCM mode from your working Ultrasonic code
-        GPIO.setmode(GPIO.BCM)
-        # Setup pin as Input with Pull-Up Resistor (Default High, Magnet pulls Low)
-        GPIO.setup(self.hall_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-        # --- Interrupt Setup ---
-        # Instead of polling, we listen for a "Falling Edge" (High -> Low transition)
-        # This function runs automatically in the background whenever the magnet passes
-        GPIO.add_event_detect(self.hall_pin, GPIO.FALLING, callback=self.sensor_callback, bouncetime=10)
+        # --- GPIO Setup (The gpiozero way) ---
+        # We treat the sensor like a Button:
+        # pull_up=True:  Pin stays HIGH (3.3V) normally.
+        # bounce_time=None: Set to 0.01 or 0.02 if you get "ghost" clicks, 
+        #                   but None is best for encoders to catch fast spins.
+        try:
+            self.sensor = Button(self.hall_pin, pull_up=True, bounce_time=None)
+            
+            # "when_pressed" triggers when the pin goes LOW (Magnet Detected)
+            self.sensor.when_pressed = self.sensor_callback
+            
+        except Exception as e:
+            self.get_logger().error(f"GPIO Error: {e}")
+            self.get_logger().error("Make sure you are not running other code using GPIO 17!")
 
         # --- Publisher Setup ---
-        # 1. Publish total ticks (for position/odometry)
-        self.pub_ticks = self.create_publisher(Int32, 'encoder/ticks', 10)
-        # 2. Publish RPM (for speed checking)
-        self.pub_rpm = self.create_publisher(Float32, 'encoder/rpm', 10)
+        self.pub_ticks = self.create_publisher(Int32, 'follower2/encoder_ticks', 10)
+        self.pub_rpm = self.create_publisher(Float32, 'follower2/encoder_rpm', 10)
         
-        # --- Timer Setup ---
-        # We use the timer only to PUBLISH the data, not to read the sensor.
-        # 10 Hz = 0.1 seconds period
+        # --- Timer (10 Hz) ---
         self.timer = self.create_timer(0.1, self.timer_callback)
         
-        self.get_logger().info(f"Hall Encoder Node Started on Pin {self.hall_pin}...")
+        self.get_logger().info(f"Hall Encoder Node (gpiozero) Started on Pin {self.hall_pin}...")
 
-    def sensor_callback(self, channel):
+    def sensor_callback(self):
         """
-        This function runs every time the magnet passes the sensor.
-        It must be fast!
+        Triggered automatically when magnet passes.
         """
         self.tick_count += 1
 
     def timer_callback(self):
-        """
-        Calculates RPM and publishes the current state every 0.1s
-        """
         current_time = time.time()
         dt = current_time - self.prev_time
         
-        # Calculate Delta Ticks (how many happened in the last 0.1s)
         delta_ticks = self.tick_count - self.prev_tick_count
         
-        # Calculate RPM: (Ticks / Magnets) / (Time in minutes)
+        # RPM Calculation
         if dt > 0:
             rpm = (delta_ticks / self.magnets_on_wheel) / (dt / 60.0)
         else:
             rpm = 0.0
 
-        # 1. Publish Ticks
+        # Publish
         msg_ticks = Int32()
         msg_ticks.data = self.tick_count
         self.pub_ticks.publish(msg_ticks)
 
-        # 2. Publish RPM
         msg_rpm = Float32()
         msg_rpm.data = rpm
         self.pub_rpm.publish(msg_rpm)
         
-        # Log to console only if moving (to reduce spam)
         if delta_ticks > 0:
             self.get_logger().info(f'Ticks: {self.tick_count} | RPM: {rpm:.2f}')
 
-        # Update previous values for next calculation
         self.prev_tick_count = self.tick_count
         self.prev_time = current_time
 
@@ -92,8 +85,7 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
-        # Crucial to cleanup GPIO so pins don't stay locked
-        GPIO.cleanup()
+        # gpiozero cleans up automatically, but we destroy the node nicely
         node.destroy_node()
         rclpy.shutdown()
 
