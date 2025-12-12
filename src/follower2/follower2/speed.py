@@ -12,7 +12,7 @@ class HallEncoderNode(Node):
         
         # --- Configuration ---
         self.hall_pin = 4       # BCM 17
-        self.magnets_on_wheel = 1
+        self.magnets_on_wheel = 6
         
         # --- Variables ---
         self.tick_count = 0
