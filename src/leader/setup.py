@@ -31,6 +31,7 @@ setup(
             'motor_driver = leader.motor_driver:main',
             'motor_tester = leader.motor_tester:main',
             'servo_driver = leader.servo_driver:main',
+            'speed = leader.speed:main',
         ],
     },
 )
