@@ -35,6 +35,7 @@ setup(
             'pixy2_driver = follower2.pixy2_driver:main',
             'servo_driver = follower2.servo_driver:main',
             'spi_debug = follower2.spi_debug:main',
+            'hall_sensor_test = follower2.hall_sensor_test:main',
 
         ],
     },
