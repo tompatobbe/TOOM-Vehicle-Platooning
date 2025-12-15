@@ -8,8 +8,8 @@ def generate_launch_description():
     # --- NODE 1 CONFIGURATION ---
     node1 = Node(
         package='follower1',       # The name of the package where the node is defined
-        executable='distance', # The name of the executable (defined in setup.py or CMakeLists.txt)
-        name='distance',      # (Optional) Overwrite the node name
+        executable='distance3', # The name of the executable (defined in setup.py or CMakeLists.txt)
+        name='distance3',      # (Optional) Overwrite the node name
         output='screen',                # Logs output to the console
         parameters=[
             {'param_name': 'value'}     # (Optional) Dictionary for parameters

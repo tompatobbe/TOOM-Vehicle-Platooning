@@ -200,7 +200,7 @@ class PlatoonMPCNode(Node):
             
         # 3. Own Odometry (Needed for own velocity)
         self.sub_odom = self.create_subscription(
-            Odometry, '/ego/odom', self.odom_callback, 10)
+            Odometry, 'follower1/encoder_speed_mps', self.odom_callback, 10)
 
         # --- Publishers ---
         self.pub_throttle = self.create_publisher(Float64, 'follower1/motor_throttle', 10)
