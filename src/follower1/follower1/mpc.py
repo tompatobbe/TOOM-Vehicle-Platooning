@@ -96,7 +96,7 @@ class MPCFollowerQP:
         err = dist - self.desired_distance
         cost_dist = self.Qd * cp.sum_squares(err)
         cost_u = self.Ru * cp.sum_squares(self.U)
-        Du = cp.vstack([self.U[0] - self.u_prev, self.U[1:] - self.U[:-1]])
+        Du = cp.hstack([self.U[0] - self.u_prev, self.U[1:] - self.U[:-1]])
         cost_du = self.Rdu * cp.sum_squares(Du)
 
         cost = cost_dist + cost_u + cost_du
