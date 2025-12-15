@@ -28,6 +28,7 @@ setup(
         'console_scripts': [
             'servo_driver = follower1.servo_driver:main',
             'distance = follower1.distance:main',
+            'distance3 = follower1.distance3:main',
             'motor_driver = follower1.motor_driver:main',
             'controller = follower1.controller:main',
             'motor_teleop = follower1.motor_teleop:main',
