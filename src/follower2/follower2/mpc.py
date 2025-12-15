@@ -208,41 +208,45 @@ class PlatoonMPCNode(Node):
 
     def leader_throttle_callback(self, msg):
         self.leader_throttle = msg.data
-        t = (self.get_clock().now()).nanoseconds / 1e9
-        self.get_logger().info(f"Incoming [leader/motor_throttle]: {self.leader_throttle:.4f} @ {t:.3f}s")
+        # Note: We don't log here anymore to reduce clutter, relying on the loop logs instead
 
     def distance_callback(self, msg):
         self.prev_distance = self.current_distance
         self.current_distance = msg.data
         self.last_dist_time = self.get_clock().now()
-        t = (self.last_dist_time).nanoseconds / 1e9
-        self.get_logger().info(f"Incoming [follower1/sonar_dist]: {self.current_distance:.4f} (prev {self.prev_distance}) @ {t:.3f}s")
 
     def odom_callback(self, msg):
         self.current_velocity = msg.twist.twist.linear.x
-        t = (self.get_clock().now()).nanoseconds / 1e9
-        self.get_logger().info(f"Incoming [/ego/odom]: vel={self.current_velocity:.4f} @ {t:.3f}s")
 
     def control_loop(self):
-        # 1. Check data freshness (safety)
-        time_since_dist = (self.get_clock().now() - self.last_dist_time).nanoseconds / 1e9
-        
-        # FIX 3: Increased timeout to 1.0s to allow for sensor startup lag
-        if time_since_dist > 1.0:
-            self.get_logger().warn(f"Distance data stale ({time_since_dist:.2f}s). Stopping.", throttle_duration_sec=2)
+        # 1. Calculate Data Freshness
+        now_seconds = self.get_clock().now().nanoseconds / 1e9
+        last_dist_seconds = self.last_dist_time.nanoseconds / 1e9
+        time_since_dist = now_seconds - last_dist_seconds
+
+        # 2. LOGGING (MOVED TO TOP)
+        # We log *before* we potentially return so you can see what the node sees.
+        self.get_logger().info(
+            f"LOOP: Dist={self.current_distance:.3f} | "
+            f"Vel={self.current_velocity:.3f} | "
+            f"L_Throt={self.leader_throttle:.3f} | "
+            f"DataAge={time_since_dist:.3f}s"
+        )
+
+        # 3. Safety Check
+        # Increased timeout to 2.0s to allow startup/delays
+        if time_since_dist > 2.0:
+            self.get_logger().warn(f"Distance data stale ({time_since_dist:.2f}s). STOPPING.", throttle_duration_sec=2)
             self.stop_vehicle()
             return
 
-        # Debug: log inputs to compute_control
-        self.get_logger().info(f"Inputs: distance={self.current_distance:.4f}, prev_distance={self.prev_distance}, vel={self.current_velocity:.4f}, leader_throttle={self.leader_throttle:.4f}, prev_u={self.prev_u_cmd:.4f}, age={time_since_dist:.3f}s")
-
-        # 2. Construct Follower State
+        # 4. Construct Follower State
         tau = self.mpc.tau
         self.current_accel_estimate += (self.dt / tau) * (self.prev_u_cmd - self.current_accel_estimate)
         
         x_follower = [0.0, self.current_velocity, self.current_accel_estimate]
 
-        # 3. Compute Control
+        # 5. Compute Control
         u_cmd, status = self.mpc.compute_control(
             x_follower=x_follower,
             d_meas=self.current_distance,
@@ -252,22 +256,21 @@ class PlatoonMPCNode(Node):
             u_prev_cmd=self.prev_u_cmd
         )
 
-        self.get_logger().info(f"MPC output: u_cmd={u_cmd:.4f}, status={status}")
+        self.get_logger().info(f"MPC RESULT: u_cmd={u_cmd:.4f}, status={status}")
 
-        # 4. Publish
+        # 6. Publish
         msg = Float64()
         msg.data = u_cmd
         self.pub_throttle.publish(msg)
-        self.get_logger().info(f"Outgoing [follower1/motor_throttle]: {msg.data:.4f}")
         
-        # 5. Update history
+        # 7. Update history
         self.prev_u_cmd = u_cmd
 
     def stop_vehicle(self):
         msg = Float64()
-        msg.data = -1.0
+        msg.data = -1.0 # Braking command
         self.pub_throttle.publish(msg)
-        self.get_logger().info(f"Outgoing [follower1/motor_throttle] STOP: {msg.data:.4f}")
+        self.get_logger().info(f"STOPPING: Sent throttle {msg.data}")
 
 def main(args=None):
     rclpy.init(args=args)
