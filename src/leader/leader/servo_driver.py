@@ -13,7 +13,7 @@ class ServoController(Node):
         self.declare_parameter('gpio_pin', 12)
         self.declare_parameter('min_pulse', 0.0005)
         self.declare_parameter('max_pulse', 0.0025)
-        self.declare_parameter('middle_offset', 7)
+        self.declare_parameter('middle_offset', -5)
         
         self.pin = self.get_parameter('gpio_pin').value
         min_p = self.get_parameter('min_pulse').value
@@ -22,7 +22,7 @@ class ServoController(Node):
         
         
         # --- Servo Range ---
-        self.max_angle = 100
+        self.max_angle = 60
         self.min_angle = 0
 
         # --- Hardware Setup ---
