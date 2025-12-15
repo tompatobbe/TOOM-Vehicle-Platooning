@@ -1,7 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64
-from nav_msgs.msg import Odometry
+from std_msgs.msg import Float64, Float32  # Added Float32 for speed topic
 import numpy as np
 import cvxpy as cp
 
@@ -119,7 +118,6 @@ class MPCFollowerQP:
         pos_f, vel_f, a_act_f = x_follower
         
         # We work in a local frame where current follower pos is 0.0
-        # This prevents floating point issues with large global coordinates.
         local_x0 = [0.0, vel_f, a_act_f]
         
         # Leader is at distance d_meas
@@ -138,7 +136,7 @@ class MPCFollowerQP:
         self.x0.value = np.array(local_x0, dtype=float)
         self.leader_pos0.value = float(leader_pos0_val)
         self.v_leader.value = float(v_lead)
-        self.a_leader.value = float(leader_throttle) # Pass leader throttle here
+        self.a_leader.value = float(leader_throttle)
         self.u_prev.value = float(u_prev_cmd)
 
         self.U.value = self.U_warm
@@ -184,7 +182,7 @@ class PlatoonMPCNode(Node):
         self.current_velocity = 0.0
         self.prev_distance = None
         self.prev_u_cmd = 0.0
-        self.current_accel_estimate = 0.0 # Estimate of own acceleration for MPC state
+        self.current_accel_estimate = 0.0 
         
         # Safety check: Is data fresh?
         self.last_dist_time = self.get_clock().now()
@@ -198,9 +196,10 @@ class PlatoonMPCNode(Node):
         self.sub_dist = self.create_subscription(
             Float64, 'follower2/sonar_dist', self.distance_callback, 10)
             
-        # 3. Own Odometry (Needed for own velocity)
-        self.sub_odom = self.create_subscription(
-            Odometry, '/ego/odom', self.odom_callback, 10)
+        # 3. Own Velocity (FROM SPEED NODE, NOT ODOM)
+        # Subscribes to the calculated m/s from the previous speed.py code
+        self.sub_speed = self.create_subscription(
+            Float32, 'follower2/encoder_speed_mps', self.speed_callback, 10)
 
         # --- Publishers ---
         self.pub_throttle = self.create_publisher(Float64, 'follower2/motor_throttle', 10)
@@ -217,9 +216,11 @@ class PlatoonMPCNode(Node):
         self.current_distance = msg.data
         self.last_dist_time = self.get_clock().now()
 
-    def odom_callback(self, msg):
-        # Extract forward velocity
-        self.current_velocity = msg.twist.twist.linear.x
+    def speed_callback(self, msg):
+        """
+        Updates current velocity from the hall effect sensor node.
+        """
+        self.current_velocity = float(msg.data)
 
     def control_loop(self):
         # 1. Check data freshness (safety)
@@ -230,9 +231,6 @@ class PlatoonMPCNode(Node):
             return
 
         # 2. Construct Follower State x = [pos, vel, acc]
-        # Pos is handled relatively inside MPC (local frame), so we pass 0.0 here
-        # We approximate current acceleration using the previous commanded input with lag
-        # a_k = a_{k-1} + (dt/tau)*(u_{k-1} - a_{k-1})
         tau = self.mpc.tau
         self.current_accel_estimate += (self.dt / tau) * (self.prev_u_cmd - self.current_accel_estimate)
         
