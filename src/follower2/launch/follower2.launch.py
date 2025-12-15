@@ -19,8 +19,8 @@ def generate_launch_description():
     # --- NODE 2 CONFIGURATION ---
     node2 = Node(
         package='follower2',       # Can be the same package as Node 1
-        executable='controller',
-        name='controller',
+        executable='mpc',
+        name='mpc',
         output='screen',
         # remappings=[                  # (Optional) Remap topics if necessary
         #     ('/old_topic', '/new_topic')
