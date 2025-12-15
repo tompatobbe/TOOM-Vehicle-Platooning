@@ -13,7 +13,7 @@ class ServoController(Node):
         self.declare_parameter('gpio_pin', 12)
         self.declare_parameter('min_pulse', 0.0005)
         self.declare_parameter('max_pulse', 0.0025)
-        self.declare_parameter('middle_offset', -10)
+        self.declare_parameter('middle_offset', 5)
         
         self.pin = self.get_parameter('gpio_pin').value
         min_p = self.get_parameter('min_pulse').value
@@ -41,7 +41,7 @@ class ServoController(Node):
         
             # Set servo to middle position on startup
             middle_angle = (self.min_angle + self.max_angle) / 2
-            self.servo.angle = middle_angle
+            self.servo.angle = middle_angle + self.middle_offset
             self.get_logger().info(f'Servo set to middle position: {middle_angle:.2f}°')
         except Exception as e:
             self.get_logger().error(f'Failed to init hardware: {e}')
@@ -56,7 +56,7 @@ class ServoController(Node):
             10)
         
     def listener_callback(self, msg):
-        target_angle = 60 - msg.data + self.middle_offset
+        target_angle = 60 - msg.data
         
         
         if self.servo:
