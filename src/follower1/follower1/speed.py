@@ -31,10 +31,10 @@ class HallEncoderNode(Node):
             self.get_logger().error(f"GPIO Error: {e}")
 
         # --- Publishers ---
-        self.pub_ticks = self.create_publisher(Int32, 'follower2/encoder_ticks', 10)
-        self.pub_rpm = self.create_publisher(Float32, 'follower2/encoder_rpm', 10)
+        self.pub_ticks = self.create_publisher(Int32, 'follower1/encoder_ticks', 10)
+        self.pub_rpm = self.create_publisher(Float32, 'follower1/encoder_rpm', 10)
         # New publisher for m/s
-        self.pub_speed = self.create_publisher(Float32, 'follower2/encoder_speed_mps', 10)
+        self.pub_speed = self.create_publisher(Float32, 'follower1/encoder_speed_mps', 10)
         
         # --- Timer ---
         self.timer = self.create_timer(0.1, self.timer_callback)

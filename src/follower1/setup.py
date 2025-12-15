@@ -35,6 +35,7 @@ setup(
             'mpc = follower1.mpc:main',
             'camera = follower1.camera:main',
             'pixy2_driver = follower1.pixy2_driver:main',
+            'speed = follower1.speed:main',
         ],
     },
 )
