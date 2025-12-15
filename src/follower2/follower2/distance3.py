@@ -106,7 +106,7 @@ class MultiUltrasonicNode(Node):
         # 1. Log all distances on one line
         # Helper string for logging (shows -1 as "Err")
         fmt = lambda d: f"{d:.2f}m" if d > 0 else "Err"
-        self.get_logger().info(f"L: {fmt(dist_l)} | C: {fmt(dist_c)} | R: {fmt(dist_r)}")
+        #self.get_logger().info(f"L: {fmt(dist_l)} | C: {fmt(dist_c)} | R: {fmt(dist_r)}")
 
         # 2. Logic to find the valid minimum distance
         valid_measurements = []
