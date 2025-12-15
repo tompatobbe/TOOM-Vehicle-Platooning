@@ -16,7 +16,7 @@ class HallEncoderNode(Node):
         self.stop_timeout = 1.0 # Seconds to wait before assuming 0 speed
         
         # !!! UPDATE THIS VALUE !!!
-        self.wheel_radius = 0.032  # Radius in meters (e.g., 0.032m = 32mm)
+        self.wheel_radius = 0.0318  # Radius in meters (e.g., 0.032m = 32mm)
         
         # --- State Variables ---
         self.tick_count = 0
