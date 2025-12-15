@@ -1,13 +1,14 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64, Float32  # Added Float32 for speed topic
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from std_msgs.msg import Float64
+from nav_msgs.msg import Odometry
 import numpy as np
 import cvxpy as cp
 
 class MPCFollowerQP:
     """
     QP-based MPC follower controller with actuator dynamics (first-order lag).
-    Modified to include Leader Acceleration (Throttle) in prediction.
     """
 
     def __init__(self,
@@ -24,7 +25,6 @@ class MPCFollowerQP:
                  solver=cp.OSQP,
                  verbose=False):
 
-        # Store parameters
         self.dt = float(dt)
         self.N = int(horizon)
         self.tau = float(tau_act)
@@ -38,7 +38,6 @@ class MPCFollowerQP:
         self.solver = solver
         self.verbose = bool(verbose)
 
-        # Build discrete system matrices (A and B for x_{k+1} = A*x_k + B*u_k)
         dt = self.dt
         # State: [pos, vel, a_act]
         A = np.array([
@@ -51,7 +50,7 @@ class MPCFollowerQP:
         self.A = A
         self.B = B
 
-        # Precompute prediction matrices Sx and Su
+        # Precompute prediction matrices
         nx = 3
         N = self.N
         Sx = np.zeros((nx*N, nx))
@@ -65,42 +64,38 @@ class MPCFollowerQP:
                 Aj = np.linalg.matrix_power(A, k - j)
                 Su[k*nx:(k+1)*nx, j] = (Aj @ B).flatten()
 
-        # Extract predicted positions
         pos_rows = [i * nx for i in range(N)]
         self.Px_pos = Sx[pos_rows, :]
         self.Pu_pos = Su[pos_rows, :]
         self.time_steps = np.array([(k+1) * dt for k in range(N)])
 
         # --- Build CVXPY Problem ---
-        self.U = cp.Variable(N)        # Control sequence
-        self.x0 = cp.Parameter(nx)     # Current follower state
+        self.U = cp.Variable(N)
+        self.x0 = cp.Parameter(nx)
         self.leader_pos0 = cp.Parameter() 
         self.v_leader = cp.Parameter() 
-        self.a_leader = cp.Parameter() # NEW: Leader Acceleration Parameter
+        self.a_leader = cp.Parameter()
         self.u_prev = cp.Parameter()   
 
-        # Predicted follower position trajectory
         pos_pred = self.Px_pos @ self.x0 + self.Pu_pos @ self.U
         
-        # Predicted leader trajectory (Includes acceleration term now)
-        # p(t) = p0 + v*t + 0.5*a*t^2
         leader_vec = (self.leader_pos0 + 
                       self.v_leader * self.time_steps + 
                       0.5 * self.a_leader * cp.square(self.time_steps))
         
-        # Predicted distance trajectory
         dist = leader_vec - pos_pred
 
         # Cost Functions
         err = dist - self.desired_distance
         cost_dist = self.Qd * cp.sum_squares(err)
         cost_u = self.Ru * cp.sum_squares(self.U)
-        Du = cp.vstack([self.U[0] - self.u_prev, self.U[1:] - self.U[:-1]])
+        
+        # FIX 1: Use hstack for 1D stacking
+        Du = cp.hstack([self.U[0] - self.u_prev, self.U[1:] - self.U[:-1]])
         cost_du = self.Rdu * cp.sum_squares(Du)
 
         cost = cost_dist + cost_u + cost_du
 
-        # Constraints
         constraints = [
             dist >= self.safety_distance,
             self.U >= self.u_min,
@@ -112,19 +107,10 @@ class MPCFollowerQP:
 
     def compute_control(self, x_follower, d_meas, v_follower, leader_throttle, 
                         d_prev=None, u_prev_cmd=0.0):
-        """
-        Computes u_cmd using leader throttle and distance.
-        """
         pos_f, vel_f, a_act_f = x_follower
-        
-        # We work in a local frame where current follower pos is 0.0
         local_x0 = [0.0, vel_f, a_act_f]
-        
-        # Leader is at distance d_meas
         leader_pos0_val = d_meas
 
-        # Estimate Leader Velocity
-        # v_leader = v_follower + d_dot
         if d_prev is not None:
             d_dot = (d_meas - d_prev) / max(self.dt, 1e-9)
         else:
@@ -132,7 +118,6 @@ class MPCFollowerQP:
         
         v_lead = d_dot + float(v_follower)
 
-        # Assign CVXPY parameters
         self.x0.value = np.array(local_x0, dtype=float)
         self.leader_pos0.value = float(leader_pos0_val)
         self.v_leader.value = float(v_lead)
@@ -141,7 +126,6 @@ class MPCFollowerQP:
 
         self.U.value = self.U_warm
 
-        # Solve
         try:
             self.problem.solve(solver=self.solver, verbose=self.verbose, warm_start=True, osqp_param={'verbose': 0})
         except Exception:
@@ -162,7 +146,7 @@ class PlatoonMPCNode(Node):
 
         # --- Parameters ---
         self.declare_parameter('dt', 0.05)
-        self.declare_parameter('target_dist', 1.0) # Desired following distance
+        self.declare_parameter('target_dist', 1.0)
         
         self.dt = self.get_parameter('dt').value
         target_dist = self.get_parameter('target_dist').value
@@ -172,7 +156,7 @@ class PlatoonMPCNode(Node):
             dt=self.dt,
             horizon=20,
             desired_distance=target_dist,
-            safety_distance=0.3, # Hard constraint
+            safety_distance=0.3,
             verbose=False
         )
 
@@ -182,27 +166,32 @@ class PlatoonMPCNode(Node):
         self.current_velocity = 0.0
         self.prev_distance = None
         self.prev_u_cmd = 0.0
-        self.current_accel_estimate = 0.0 
+        self.current_accel_estimate = 0.0
         
-        # Safety check: Is data fresh?
+        # Initialize time to NOW so we don't timeout instantly on startup
         self.last_dist_time = self.get_clock().now()
 
+        # --- QoS Profile ---
+        # FIX 2: Create a "Best Effort" QoS profile for sensors
+        qos_sensor = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10
+        )
+
         # --- Subscribers ---
-        # 1. Throttle of vehicle in front
         self.sub_leader_u = self.create_subscription(
-            Float64, 'follower1/motor_throttle', self.leader_throttle_callback, 10)
+            Float64, 'leader/motor_throttle', self.leader_throttle_callback, 10)
         
-        # 2. Distance to vehicle in front
+        # FIX 2: Apply QoS profile here
         self.sub_dist = self.create_subscription(
-            Float64, 'follower2/sonar_dist', self.distance_callback, 10)
+            Float64, 'follower1/sonar_dist', self.distance_callback, qos_sensor)
             
-        # 3. Own Velocity (FROM SPEED NODE, NOT ODOM)
-        # Subscribes to the calculated m/s from the previous speed.py code
-        self.sub_speed = self.create_subscription(
-            Float32, 'follower2/encoder_speed_mps', self.speed_callback, 10)
+        self.sub_odom = self.create_subscription(
+            Odometry, '/ego/odom', self.odom_callback, 10)
 
         # --- Publishers ---
-        self.pub_throttle = self.create_publisher(Float64, 'follower2/motor_throttle', 10)
+        self.pub_throttle = self.create_publisher(Float64, 'follower1/motor_throttle', 10)
 
         # --- Control Loop ---
         self.timer = self.create_timer(self.dt, self.control_loop)
@@ -216,21 +205,20 @@ class PlatoonMPCNode(Node):
         self.current_distance = msg.data
         self.last_dist_time = self.get_clock().now()
 
-    def speed_callback(self, msg):
-        """
-        Updates current velocity from the hall effect sensor node.
-        """
-        self.current_velocity = float(msg.data)
+    def odom_callback(self, msg):
+        self.current_velocity = msg.twist.twist.linear.x
 
     def control_loop(self):
         # 1. Check data freshness (safety)
         time_since_dist = (self.get_clock().now() - self.last_dist_time).nanoseconds / 1e9
+        
+        # FIX 3: Increased timeout to 1.0s to allow for sensor startup lag
         if time_since_dist > 1.0:
-            self.get_logger().warn("Distance data stale. Stopping.", throttle_duration_sec=1)
+            self.get_logger().warn(f"Distance data stale ({time_since_dist:.2f}s). Stopping.", throttle_duration_sec=2)
             self.stop_vehicle()
             return
 
-        # 2. Construct Follower State x = [pos, vel, acc]
+        # 2. Construct Follower State
         tau = self.mpc.tau
         self.current_accel_estimate += (self.dt / tau) * (self.prev_u_cmd - self.current_accel_estimate)
         
@@ -250,13 +238,13 @@ class PlatoonMPCNode(Node):
         msg = Float64()
         msg.data = u_cmd
         self.pub_throttle.publish(msg)
-
+        
         # 5. Update history
         self.prev_u_cmd = u_cmd
 
     def stop_vehicle(self):
         msg = Float64()
-        msg.data = -1.0 # Braking
+        msg.data = -1.0
         self.pub_throttle.publish(msg)
 
 def main(args=None):
