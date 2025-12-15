@@ -13,7 +13,7 @@ class ServoController(Node):
         self.declare_parameter('gpio_pin', 12)
         self.declare_parameter('min_pulse', 0.0005)
         self.declare_parameter('max_pulse', 0.0025)
-        self.declare_parameter('middle_offset', 10)
+        self.declare_parameter('middle_offset', -10)
         
         self.pin = self.get_parameter('gpio_pin').value
         min_p = self.get_parameter('min_pulse').value
@@ -56,7 +56,7 @@ class ServoController(Node):
             10)
         
     def listener_callback(self, msg):
-        target_angle = 60 - msg.data
+        target_angle = 60 - msg.data + self.middle_offset
         
         
         if self.servo:
