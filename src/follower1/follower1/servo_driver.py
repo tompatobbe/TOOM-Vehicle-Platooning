@@ -65,7 +65,7 @@ class ServoController(Node):
             self.servo.angle = target_angle
      
             
-            self.get_logger().info(f'Angle: {target_angle:.2f}°')
+            #self.get_logger().info(f'Angle: {target_angle:.2f}°')
 
 
     def cleanup(self):
