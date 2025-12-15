@@ -47,10 +47,21 @@ def generate_launch_description():
         # ]
     )
 
+    node5 = Node(
+        package='leader',       # Can be the same package as Node 1
+        executable='speed',
+        name='speed',
+        output='screen',
+        # remappings=[                  # (Optional) Remap topics if necessary
+        #     ('/old_topic', '/new_topic')
+        # ]
+    )
+
     # --- RETURN LAUNCH DESCRIPTION ---
     return LaunchDescription([
         node1,
         node2,
         node3,
-        node4
+        node4,
+        node5,
     ])
