@@ -22,7 +22,7 @@ class MPCFollowerQP:
                  u_min=-6.0,
                  u_max=3.0,
                  safety_distance=0.15,
-                 desired_distance=0.50,
+                 desired_distance=0.20,
                  solver=cp.OSQP,
                  verbose=False):
 
