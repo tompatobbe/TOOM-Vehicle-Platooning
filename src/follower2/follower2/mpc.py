@@ -199,7 +199,7 @@ class PlatoonMPCNode(Node):
         self.pub_throttle = self.create_publisher(Float64, 'follower1/motor_throttle', 10)
 
         # Log subscriptions/publishers
-        self.get_logger().info("Subscribed to: leader/motor_throttle, follower1/sonar_dist, /ego/odom")
+        self.get_logger().info("Subscribed to: leader/motor_throttle, follower1/sonar_dist, follower2/")
         self.get_logger().info("Publishing to: follower1/motor_throttle")
 
         # --- Control Loop ---

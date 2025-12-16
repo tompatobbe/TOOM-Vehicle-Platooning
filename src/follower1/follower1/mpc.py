@@ -225,6 +225,7 @@ class PlatoonMPCNode(Node):
         # 1. Check data freshness (safety)
         time_since_dist = (self.get_clock().now() - self.last_dist_time).nanoseconds / 1e9
         if time_since_dist > 0.5:
+            self.get_logger().warn(time_since_dist)
             self.get_logger().warn("Distance data stale. Stopping.", throttle_duration_sec=1)
             self.stop_vehicle()
             return
