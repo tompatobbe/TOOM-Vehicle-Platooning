@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64
+from std_msgs.msg import Float32
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Range
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy # Import QoS modules
@@ -210,14 +210,14 @@ class PlatoonMPCNode(Node):
 
         # 2. Leader Throttle
         self.sub_leader_u = self.create_subscription(
-            Float64, 'leader/motor_throttle', self.leader_throttle_callback, 10)
+            Float32, 'leader/motor_throttle', self.leader_throttle_callback, 10)
         
         # 3. Own Odometry 
         self.sub_odom = self.create_subscription(
             Odometry, 'follower1/encoder_speed_mps', self.odom_callback, 10)
 
         # --- Publishers ---
-        self.pub_throttle = self.create_publisher(Float64, 'follower1/motor_throttle', 10)
+        self.pub_throttle = self.create_publisher(Float32, 'follower1/motor_throttle', 10)
 
         # --- Control Loop ---
         self.timer = self.create_timer(self.dt, self.control_loop)
@@ -273,7 +273,7 @@ class PlatoonMPCNode(Node):
         )
 
         # 4. Publish
-        msg = Float64()
+        msg = Float32()
         msg.data = u_cmd
         self.pub_throttle.publish(msg)
         
@@ -284,7 +284,7 @@ class PlatoonMPCNode(Node):
         self.prev_u_cmd = u_cmd
 
     def stop_vehicle(self):
-        msg = Float64()
+        msg = Float32()
         msg.data = -1.0 # Braking
         self.pub_throttle.publish(msg)
 
