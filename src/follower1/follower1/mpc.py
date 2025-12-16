@@ -16,7 +16,7 @@ class MPCFollowerQP:
                  dt=0.05,
                  horizon=15,
                  tau_act=0.15,
-                 Qd=50.0,
+                 Qd=5.0,
                  Ru=0.01,
                  Rdu=10.0,
                  u_min=-6.0,
