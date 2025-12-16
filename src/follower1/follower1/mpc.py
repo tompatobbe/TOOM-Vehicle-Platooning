@@ -165,9 +165,11 @@ class PlatoonMPCNode(Node):
         # --- Parameters ---
         self.declare_parameter('dt', 0.05)
         self.declare_parameter('target_dist', 1.0) 
+        self.declare_parameter('throttle_offset', 1.0)
         
         self.dt = self.get_parameter('dt').value
         target_dist = self.get_parameter('target_dist').value
+        self.throttle_offset = self.get_parameter('throttle_offset').value
 
         # --- MPC Controller ---
         self.mpc = MPCFollowerQP(
@@ -271,20 +273,22 @@ class PlatoonMPCNode(Node):
             u_prev_cmd=self.prev_u_cmd
         )
 
-        # 4. Publish
+        # 4. Publish (apply offset and clamp to MPC limits)
+        cmd_out = float(np.clip(u_cmd + self.throttle_offset, self.mpc.u_min, self.mpc.u_max))
         msg = Float32()
-        msg.data = u_cmd
+        msg.data = cmd_out
         self.pub_throttle.publish(msg)
         
         # Logging control output for sanity check
-        self.get_logger().debug(f"MPC Cmd: {u_cmd:.3f}", throttle_duration_sec=1.0)
+        self.get_logger().debug(f"MPC Cmd: {u_cmd:.3f} Published: {cmd_out:.3f}", throttle_duration_sec=1.0)
 
         # 5. Update history
-        self.prev_u_cmd = u_cmd
+        self.prev_u_cmd = cmd_out
 
     def stop_vehicle(self):
+        cmd_out = float(np.clip(0.0 + self.throttle_offset, self.mpc.u_min, self.mpc.u_max))
         msg = Float32()
-        msg.data = 0.0 # Braking
+        msg.data = cmd_out # Braking (offset applied)
         self.pub_throttle.publish(msg)
 
 def main(args=None):
