@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import Range
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy # Import QoS modules
 import numpy as np
 import cvxpy as cp
@@ -197,10 +198,10 @@ class PlatoonMPCNode(Node):
             reliability=ReliabilityPolicy.BEST_EFFORT,
             history=HistoryPolicy.KEEP_LAST,
             depth=1
-        )
+        )       
 
         self.sub_dist = self.create_subscription(
-            Float64, 
+            Range, 
             'follower1/sonar_dist', 
             self.distance_callback, 
             sensor_qos  # <--- CHANGED FROM 10 TO sensor_qos
@@ -228,11 +229,11 @@ class PlatoonMPCNode(Node):
     def distance_callback(self, msg):
         # LOGGING POINT 1: Verify data arrival
         # Throttle log to once every 2 seconds to avoid spamming
-        self.get_logger().info(f"Distance Callback Triggered! Value: {msg.data:.3f}", 
+        self.get_logger().info(f"Distance Callback Triggered! Value: {msg.range:.3f}", 
                                throttle_duration_sec=2.0)
         
         self.prev_distance = self.current_distance
-        self.current_distance = msg.data
+        self.current_distance = msg.range
         self.last_dist_time = self.get_clock().now()
 
     def odom_callback(self, msg):
