@@ -284,7 +284,7 @@ class PlatoonMPCNode(Node):
 
     def stop_vehicle(self):
         msg = Float32()
-        msg.data = -1.0 # Braking
+        msg.data = 0.0 # Braking
         self.pub_throttle.publish(msg)
 
 def main(args=None):
