@@ -1,7 +1,6 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
-from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Range
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy # Import QoS modules
 import numpy as np
@@ -212,9 +211,9 @@ class PlatoonMPCNode(Node):
         self.sub_leader_u = self.create_subscription(
             Float32, 'leader/motor_throttle', self.leader_throttle_callback, 10)
         
-        # 3. Own Odometry 
+        # 3. Own Speed 
         self.sub_odom = self.create_subscription(
-            Odometry, 'follower1/encoder_speed_mps', self.odom_callback, 10)
+            Float32, 'follower1/encoder_speed_mps', self.odom_callback, 10)
 
         # --- Publishers ---
         self.pub_throttle = self.create_publisher(Float32, 'follower1/motor_throttle', 10)
