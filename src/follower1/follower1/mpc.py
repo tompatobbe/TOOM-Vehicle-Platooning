@@ -2,15 +2,16 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64
 from nav_msgs.msg import Odometry
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy # Import QoS modules
 import numpy as np
 import cvxpy as cp
 
+# ... (Keep your MPCFollowerQP class exactly as it was, no changes needed there) ...
 class MPCFollowerQP:
     """
     QP-based MPC follower controller with actuator dynamics (first-order lag).
     Modified to include Leader Acceleration (Throttle) in prediction.
     """
-
     def __init__(self,
                  dt=0.05,
                  horizon=15,
@@ -157,14 +158,13 @@ class MPCFollowerQP:
         
         return float(Uopt[0])
 
-
 class PlatoonMPCNode(Node):
     def __init__(self):
         super().__init__('platoon_mpc_node')
 
         # --- Parameters ---
         self.declare_parameter('dt', 0.05)
-        self.declare_parameter('target_dist', 1.0) # Desired following distance
+        self.declare_parameter('target_dist', 1.0) 
         
         self.dt = self.get_parameter('dt').value
         target_dist = self.get_parameter('target_dist').value
@@ -174,7 +174,7 @@ class PlatoonMPCNode(Node):
             dt=self.dt,
             horizon=20,
             desired_distance=target_dist,
-            safety_distance=0.3, # Hard constraint
+            safety_distance=0.3,
             verbose=False
         )
 
@@ -184,21 +184,34 @@ class PlatoonMPCNode(Node):
         self.current_velocity = 0.0
         self.prev_distance = None
         self.prev_u_cmd = 0.0
-        self.current_accel_estimate = 0.0 # Estimate of own acceleration for MPC state
+        self.current_accel_estimate = 0.0
         
-        # Safety check: Is data fresh?
+        # Initializing clock time
         self.last_dist_time = self.get_clock().now()
 
         # --- Subscribers ---
-        # 1. Throttle of vehicle in front
+
+        # 1. Distance Subscriber (The one causing issues)
+        # DEFINE BEST EFFORT QoS: Common fix for sensor data mismatch
+        sensor_qos = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=1
+        )
+
+        self.sub_dist = self.create_subscription(
+            Float64, 
+            'follower1/sonar_dist', 
+            self.distance_callback, 
+            sensor_qos  # <--- CHANGED FROM 10 TO sensor_qos
+        )
+        self.get_logger().info("Subscribed to follower1/sonar_dist with BEST_EFFORT QoS")
+
+        # 2. Leader Throttle
         self.sub_leader_u = self.create_subscription(
             Float64, 'leader/motor_throttle', self.leader_throttle_callback, 10)
         
-        # 2. Distance to vehicle in front
-        self.sub_dist = self.create_subscription(
-            Float64, 'follower1/sonar_dist', self.distance_callback, 10)
-            
-        # 3. Own Odometry (Needed for own velocity)
+        # 3. Own Odometry 
         self.sub_odom = self.create_subscription(
             Odometry, 'follower1/encoder_speed_mps', self.odom_callback, 10)
 
@@ -213,29 +226,39 @@ class PlatoonMPCNode(Node):
         self.leader_throttle = msg.data
 
     def distance_callback(self, msg):
+        # LOGGING POINT 1: Verify data arrival
+        # Throttle log to once every 2 seconds to avoid spamming
+        self.get_logger().info(f"Distance Callback Triggered! Value: {msg.data:.3f}", 
+                               throttle_duration_sec=2.0)
+        
         self.prev_distance = self.current_distance
         self.current_distance = msg.data
         self.last_dist_time = self.get_clock().now()
 
     def odom_callback(self, msg):
-        # Extract forward velocity
         self.current_velocity = msg.twist.twist.linear.x
 
     def control_loop(self):
+        # Calc time difference
+        now = self.get_clock().now()
+        time_since_dist = (now - self.last_dist_time).nanoseconds / 1e9
+        
+        # LOGGING POINT 2: Verify Timing logic
+        # Only log if we are approaching the limit (e.g. > 0.1s)
+        if time_since_dist > 0.1:
+            self.get_logger().warn(f"Warning: Last dist received {time_since_dist:.4f}s ago", 
+                                   throttle_duration_sec=1.0)
+
         # 1. Check data freshness (safety)
-        time_since_dist = (self.get_clock().now() - self.last_dist_time).nanoseconds / 1e9
         if time_since_dist > 0.5:
-            self.get_logger().warn("Distance data stale. Stopping.", throttle_duration_sec=1)
+            self.get_logger().error(f"Distance data STALE. Gap: {time_since_dist:.4f}s. Stopping.", 
+                                    throttle_duration_sec=1.0)
             self.stop_vehicle()
             return
 
-        # 2. Construct Follower State x = [pos, vel, acc]
-        # Pos is handled relatively inside MPC (local frame), so we pass 0.0 here
-        # We approximate current acceleration using the previous commanded input with lag
-        # a_k = a_{k-1} + (dt/tau)*(u_{k-1} - a_{k-1})
+        # 2. Construct Follower State 
         tau = self.mpc.tau
         self.current_accel_estimate += (self.dt / tau) * (self.prev_u_cmd - self.current_accel_estimate)
-        
         x_follower = [0.0, self.current_velocity, self.current_accel_estimate]
 
         # 3. Compute Control
@@ -252,6 +275,9 @@ class PlatoonMPCNode(Node):
         msg = Float64()
         msg.data = u_cmd
         self.pub_throttle.publish(msg)
+        
+        # Logging control output for sanity check
+        self.get_logger().debug(f"MPC Cmd: {u_cmd:.3f}", throttle_duration_sec=1.0)
 
         # 5. Update history
         self.prev_u_cmd = u_cmd
