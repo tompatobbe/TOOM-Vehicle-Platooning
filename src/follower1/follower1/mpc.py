@@ -236,7 +236,7 @@ class PlatoonMPCNode(Node):
         self.last_dist_time = self.get_clock().now()
 
     def odom_callback(self, msg):
-        self.current_velocity = msg.twist.twist.linear.x
+        self.current_velocity = msg.data
 
     def control_loop(self):
         # Calc time difference
