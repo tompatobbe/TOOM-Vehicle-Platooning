@@ -20,7 +20,7 @@ class MPCFollowerQP:
                  Ru=0.01,
                  Rdu=10.0,
                  u_min=-1.0,
-                 u_max=3.0,
+                 u_max=30.0,
                  safety_distance=0.10,
                  desired_distance=0.15,
                  solver=cp.OSQP,
