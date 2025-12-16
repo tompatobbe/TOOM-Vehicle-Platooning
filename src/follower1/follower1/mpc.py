@@ -19,7 +19,7 @@ class MPCFollowerQP:
                  Qd=0.0050,
                  Ru=0.01,
                  Rdu=10.0,
-                 u_min=-6.0,
+                 u_min=0.0,
                  u_max=3.0,
                  safety_distance=0.10,
                  desired_distance=0.15,
