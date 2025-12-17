@@ -16,3 +16,9 @@ sudo usermod -aG gpio $USER
 sudo chown root:gpio /dev/gpiomem
 sudo chmod g+rw /dev/gpiomem
 
+
+# Mpc install cvxpy
+sudo apt update
+sudo apt install python3-pip python3-dev libatlas-base-dev gfortran libopenblas-dev liblapack-dev -y
+pip3 install cvxpy --break-system-packages
+python3 -c "import cvxpy; print('CVXPY version:', cvxpy.__version__)"
