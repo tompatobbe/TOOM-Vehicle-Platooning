@@ -14,8 +14,8 @@ class MPCFollowerQP:
                  dt=0.05,
                  horizon=20,
                  tau_act=0.08,
-                 Qd=5.0,            # Increased slightly so it reacts faster to small 15cm errors
-                 Ru=50.0,              # Discourages full throttle (keeps speed manageable)
+                 Qd=5.0,            # Increased slightly so it reacts faster to small errors
+                 Ru=500.0,              # Discourages full throttle (keeps speed manageable)
                  Rdu=100.0,           # Smooth acceleration (prevents wheelies/jerks)
                  u_min=-1.0,
                  u_max=1.0,
