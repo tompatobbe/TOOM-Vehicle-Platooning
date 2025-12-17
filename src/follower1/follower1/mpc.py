@@ -6,7 +6,6 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy # Import QoS 
 import numpy as np
 import cvxpy as cp
 
-# ... (Keep your MPCFollowerQP class exactly as it was, no changes needed there) ...
 class MPCFollowerQP:
     """
     QP-based MPC follower controller with actuator dynamics (first-order lag).
@@ -14,11 +13,11 @@ class MPCFollowerQP:
     """
     def __init__(self,
                  dt=0.05,
-                 horizon=10,
+                 horizon=20,          # CHANGED: Increased horizon for smoother planning
                  tau_act=0.08,
-                 Qd=1500.0,
-                 Ru=0.1,
-                 Rdu=100.0,
+                 Qd=300.0,            # CHANGED: Lowered from 1500.0 (Less aggressive catch-up)
+                 Ru=5.0,              # CHANGED: Increased from 0.1 (Penalize high throttle usage)
+                 Rdu=100.0,           # CHANGED: Increased from 10.0 (Strongly penalize jerky throttle changes)
                  u_min=-1.0,
                  u_max=1.0,
                  safety_distance=0.05,
@@ -166,18 +165,22 @@ class PlatoonMPCNode(Node):
         self.declare_parameter('dt', 0.05)
         self.declare_parameter('target_dist', 1.0) 
         self.declare_parameter('throttle_offset', 1.0)
-        
+        # NEW: Friction Deadband Parameter
+        self.declare_parameter('friction_deadband', 0.3) 
+
         self.dt = self.get_parameter('dt').value
         target_dist = self.get_parameter('target_dist').value
         self.throttle_offset = self.get_parameter('throttle_offset').value
+        self.friction_deadband = self.get_parameter('friction_deadband').value
 
         # --- MPC Controller ---
         self.mpc = MPCFollowerQP(
             dt=self.dt,
-            horizon=20,
+            horizon=20,          # Matches updated class
             desired_distance=target_dist,
             safety_distance=0.3,
             verbose=False
+            # Weights are now set in the class defaults above
         )
 
         # --- State Variables ---
@@ -260,10 +263,12 @@ class PlatoonMPCNode(Node):
 
         # 2. Construct Follower State 
         tau = self.mpc.tau
+        # Note: We use self.prev_u_cmd (the raw MPC output) for estimation, 
+        # not the friction-compensated output, to keep the model physics-aligned.
         self.current_accel_estimate += (self.dt / tau) * (self.prev_u_cmd - self.current_accel_estimate)
         x_follower = [0.0, self.current_velocity, self.current_accel_estimate]
 
-        # 3. Compute Control
+        # 3. Compute Control (This u_cmd assumes a linear motor)
         u_cmd = self.mpc.compute_control(
             x_follower=x_follower,
             d_meas=self.current_distance,
@@ -273,17 +278,42 @@ class PlatoonMPCNode(Node):
             u_prev_cmd=self.prev_u_cmd
         )
 
-        # 4. Publish (apply offset and clamp to MPC limits)
-        cmd_out = float(np.clip(u_cmd + self.throttle_offset, self.mpc.u_min, self.mpc.u_max))
+        # 4. Friction Deadband Compensation
+        # The MPC calculates ideal acceleration effort (u_cmd).
+        # We must boost this effort to overcome static friction (deadband).
+        
+        compensated_cmd = u_cmd
+
+        # Apply Deadband "Jump"
+        if u_cmd > 0.01: 
+            # If moving forward, add the friction cost immediately
+            compensated_cmd = u_cmd + self.friction_deadband
+        elif u_cmd < -0.01:
+            # If reversing/braking, subtract friction cost
+            compensated_cmd = u_cmd - self.friction_deadband
+        else:
+            # Inside tiny deadband, just output neutral
+            compensated_cmd = 0.0
+
+        # Apply Neutral Offset and Clamp
+        # Note: We apply offset to the *compensated* command
+        final_cmd = compensated_cmd + self.throttle_offset
+        cmd_out = float(np.clip(final_cmd, self.mpc.u_min, self.mpc.u_max))
+
+        # Publish
         msg = Float32()
         msg.data = cmd_out
         self.pub_throttle.publish(msg)
         
         # Logging control output for sanity check
-        self.get_logger().debug(f"MPC Cmd: {u_cmd:.3f} Published: {cmd_out:.3f}", throttle_duration_sec=1.0)
+        self.get_logger().debug(f"MPC Raw: {u_cmd:.3f} | Comp: {compensated_cmd:.3f} | Final: {cmd_out:.3f}", 
+                                throttle_duration_sec=1.0)
 
         # 5. Update history
-        self.prev_u_cmd = cmd_out
+        # IMPORTANT: We save the *raw* u_cmd. If we save the friction-boosted 
+        # command, the MPC will think it is applying huge acceleration and 
+        # will get confused when the car only moves slightly.
+        self.prev_u_cmd = u_cmd
 
     def stop_vehicle(self):
         cmd_out = float(np.clip(0.0 + self.throttle_offset, self.mpc.u_min, self.mpc.u_max))
