@@ -14,19 +14,14 @@ class MPCFollowerQP:
                  dt=0.05,
                  horizon=20,
                  tau_act=0.08,
-                 # --- TUNING FOR CLOSE RANGE (RC CAR) ---
                  Qd=5.0,            # Increased slightly so it reacts faster to small 15cm errors
-                 Ru=5.0,              # Discourages full throttle (keeps speed manageable)
+                 Ru=50.0,              # Discourages full throttle (keeps speed manageable)
                  Rdu=100.0,           # Smooth acceleration (prevents wheelies/jerks)
-                 # ---------------------------------------
                  u_min=-1.0,
                  u_max=1.0,
                  
-                 # --- DISTANCE SETTINGS (0.15m Target) ---
-                 safety_distance=0.05,   # 5cm: The "Crash" line. MPC will panic if closer than this.
-                 desired_distance=0.15,  # 15cm: The Goal.
-                 # ----------------------------------------
-                 
+                 safety_distance=0.10,   # 5cm: The "Crash" line. MPC will panic if closer than this.
+                 desired_distance=0.25,  # 15cm: The Goal.                 
                  solver=cp.OSQP,
                  verbose=False):
 
