@@ -288,9 +288,6 @@ class PlatoonMPCNode(Node):
         if u_cmd > 0.01: 
             # If moving forward, add the friction cost immediately
             compensated_cmd = u_cmd + self.friction_deadband
-        elif u_cmd < -0.01:
-            # If reversing/braking, subtract friction cost
-            compensated_cmd = u_cmd - self.friction_deadband
         else:
             # Inside tiny deadband, just output neutral
             compensated_cmd = 0.0
