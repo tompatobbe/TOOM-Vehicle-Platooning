@@ -15,7 +15,7 @@ class MPCFollowerQP:
                  horizon=20,
                  tau_act=0.08,
                  # --- TUNING FOR CLOSE RANGE (RC CAR) ---
-                 Qd=500.0,            # Increased slightly so it reacts faster to small 15cm errors
+                 Qd=5.0,            # Increased slightly so it reacts faster to small 15cm errors
                  Ru=5.0,              # Discourages full throttle (keeps speed manageable)
                  Rdu=100.0,           # Smooth acceleration (prevents wheelies/jerks)
                  # ---------------------------------------
