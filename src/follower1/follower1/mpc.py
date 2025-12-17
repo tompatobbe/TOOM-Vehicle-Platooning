@@ -166,7 +166,7 @@ class PlatoonMPCNode(Node):
         self.declare_parameter('target_dist', 1.0) 
         self.declare_parameter('throttle_offset', 1.0)
         # NEW: Friction Deadband Parameter
-        self.declare_parameter('friction_deadband', 0.2) 
+        self.declare_parameter('friction_deadband', 0.3) 
 
         self.dt = self.get_parameter('dt').value
         target_dist = self.get_parameter('target_dist').value
@@ -285,9 +285,12 @@ class PlatoonMPCNode(Node):
         compensated_cmd = u_cmd
 
         # Apply Deadband "Jump"
-        if u_cmd > 0.05: 
+        if u_cmd > 0.01: 
             # If moving forward, add the friction cost immediately
             compensated_cmd = u_cmd + self.friction_deadband
+        elif u_cmd < -0.01:
+            # If reversing/braking, subtract friction cost
+            compensated_cmd = u_cmd - self.friction_deadband
         else:
             # Inside tiny deadband, just output neutral
             compensated_cmd = 0.0
