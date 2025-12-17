@@ -11,8 +11,8 @@ class UltrasonicNode(Node):
         super().__init__('hcsr04_sensor')
         
         # --- Configuration ---
-        self.gpio_trigger = 23
-        self.gpio_echo = 24
+        self.gpio_trigger = 5
+        self.gpio_echo = 6
         self.min_range = 0.02
         self.max_range = 4.0
         self.fov = 0.26  # Approx 15 degrees
@@ -89,7 +89,7 @@ class UltrasonicNode(Node):
             self.pub_controller.publish(msg_pid)
             
             # Log to console
-            self.get_logger().info(f'Distance: {dist:.2f} m')
+            # self.get_logger().info(f'Distance: {dist:.2f} m')
         else:
             self.get_logger().warn('Sensor timeout or out of range')
 
