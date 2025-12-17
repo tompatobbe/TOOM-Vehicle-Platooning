@@ -164,8 +164,12 @@ class PlatoonMPCNode(Node):
         # --- Parameters ---
         self.declare_parameter('dt', 0.05)
         self.declare_parameter('target_dist', 1.0) 
-        self.declare_parameter('throttle_offset', 1.0)
-        # NEW: Friction Deadband Parameter
+        
+        # CHANGED: Default offset to 0.0. Only increase this if your ESC needs 
+        # a specific center value (e.g., 1500 for PWM, but usually 0.0 for ROS floats)
+        self.declare_parameter('throttle_offset', 0.0)
+        
+        # Friction Deadband
         self.declare_parameter('friction_deadband', 0.3) 
 
         self.dt = self.get_parameter('dt').value
@@ -176,11 +180,10 @@ class PlatoonMPCNode(Node):
         # --- MPC Controller ---
         self.mpc = MPCFollowerQP(
             dt=self.dt,
-            horizon=20,          # Matches updated class
+            horizon=20,
             desired_distance=target_dist,
             safety_distance=0.3,
             verbose=False
-            # Weights are now set in the class defaults above
         )
 
         # --- State Variables ---
@@ -191,13 +194,9 @@ class PlatoonMPCNode(Node):
         self.prev_u_cmd = 0.0
         self.current_accel_estimate = 0.0
         
-        # Initializing clock time
         self.last_dist_time = self.get_clock().now()
 
         # --- Subscribers ---
-
-        # 1. Distance Subscriber (The one causing issues)
-        # DEFINE BEST EFFORT QoS: Common fix for sensor data mismatch
         sensor_qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             history=HistoryPolicy.KEEP_LAST,
@@ -205,18 +204,11 @@ class PlatoonMPCNode(Node):
         )       
 
         self.sub_dist = self.create_subscription(
-            Range, 
-            'follower1/sonar_dist', 
-            self.distance_callback, 
-            sensor_qos  # <--- CHANGED FROM 10 TO sensor_qos
-        )
-        self.get_logger().info("Subscribed to follower1/sonar_dist with BEST_EFFORT QoS")
+            Range, 'follower1/sonar_dist', self.distance_callback, sensor_qos)
 
-        # 2. Leader Throttle
         self.sub_leader_u = self.create_subscription(
             Float32, 'leader/motor_throttle', self.leader_throttle_callback, 10)
         
-        # 3. Own Speed 
         self.sub_odom = self.create_subscription(
             Float32, 'follower1/encoder_speed_mps', self.odom_callback, 10)
 
@@ -231,11 +223,6 @@ class PlatoonMPCNode(Node):
         self.leader_throttle = msg.data
 
     def distance_callback(self, msg):
-        # LOGGING POINT 1: Verify data arrival
-        # Throttle log to once every 2 seconds to avoid spamming
-        self.get_logger().info(f"Distance Callback Triggered! Value: {msg.range:.3f}", 
-                               throttle_duration_sec=2.0)
-        
         self.prev_distance = self.current_distance
         self.current_distance = msg.range
         self.last_dist_time = self.get_clock().now()
@@ -244,31 +231,20 @@ class PlatoonMPCNode(Node):
         self.current_velocity = msg.data
 
     def control_loop(self):
-        # Calc time difference
         now = self.get_clock().now()
         time_since_dist = (now - self.last_dist_time).nanoseconds / 1e9
         
-        # LOGGING POINT 2: Verify Timing logic
-        # Only log if we are approaching the limit (e.g. > 0.1s)
-        if time_since_dist > 0.1:
-            self.get_logger().warn(f"Warning: Last dist received {time_since_dist:.4f}s ago", 
-                                   throttle_duration_sec=1.0)
-
-        # 1. Check data freshness (safety)
+        # Safety Check
         if time_since_dist > 0.5:
-            self.get_logger().error(f"Distance data STALE. Gap: {time_since_dist:.4f}s. Stopping.", 
-                                    throttle_duration_sec=1.0)
             self.stop_vehicle()
             return
 
-        # 2. Construct Follower State 
+        # 1. Estimate State
         tau = self.mpc.tau
-        # Note: We use self.prev_u_cmd (the raw MPC output) for estimation, 
-        # not the friction-compensated output, to keep the model physics-aligned.
         self.current_accel_estimate += (self.dt / tau) * (self.prev_u_cmd - self.current_accel_estimate)
         x_follower = [0.0, self.current_velocity, self.current_accel_estimate]
 
-        # 3. Compute Control (This u_cmd assumes a linear motor)
+        # 2. Compute MPC Control
         u_cmd = self.mpc.compute_control(
             x_follower=x_follower,
             d_meas=self.current_distance,
@@ -278,46 +254,37 @@ class PlatoonMPCNode(Node):
             u_prev_cmd=self.prev_u_cmd
         )
 
-        # 4. Friction Deadband Compensation
-        # The MPC calculates ideal acceleration effort (u_cmd).
-        # We must boost this effort to overcome static friction (deadband).
-        
-        compensated_cmd = u_cmd
+        # 3. Apply Deadband & Braking Logic
+        compensated_cmd = 0.0
 
-        # Apply Deadband "Jump"
-        if u_cmd > 0.01: 
-            # If moving forward, add the friction cost immediately
+        if u_cmd > 0.01:
+            # POSITIVE: Add friction deadband to start moving
             compensated_cmd = u_cmd + self.friction_deadband
         else:
-            # Inside tiny deadband, just output neutral
+            # NEGATIVE (Braking): Since we have no reverse/brakes, 
+            # we simply output 0.0 (Neutral/Coast)
             compensated_cmd = 0.0
 
-        # Apply Neutral Offset and Clamp
-        # Note: We apply offset to the *compensated* command
+        # 4. Apply Offset (Ensure this is 0.0 unless your hardware requires it)
         final_cmd = compensated_cmd + self.throttle_offset
-        cmd_out = float(np.clip(final_cmd, self.mpc.u_min, self.mpc.u_max))
+        
+        # Clamp between 0.0 (Stop) and u_max (Forward)
+        # We clamp min to 0.0 because you said no reverse/braking.
+        cmd_out = float(np.clip(final_cmd, 0.0, self.mpc.u_max))
 
         # Publish
         msg = Float32()
         msg.data = cmd_out
         self.pub_throttle.publish(msg)
         
-        # Logging control output for sanity check
-        self.get_logger().debug(f"MPC Raw: {u_cmd:.3f} | Comp: {compensated_cmd:.3f} | Final: {cmd_out:.3f}", 
-                                throttle_duration_sec=1.0)
-
-        # 5. Update history
-        # IMPORTANT: We save the *raw* u_cmd. If we save the friction-boosted 
-        # command, the MPC will think it is applying huge acceleration and 
-        # will get confused when the car only moves slightly.
+        # 5. Update History (Save the RAW MPC intent, not the boosted command)
         self.prev_u_cmd = u_cmd
 
     def stop_vehicle(self):
-        cmd_out = float(np.clip(0.0 + self.throttle_offset, self.mpc.u_min, self.mpc.u_max))
         msg = Float32()
-        msg.data = cmd_out # Braking (offset applied)
+        msg.data = 0.0 # Force zero output
         self.pub_throttle.publish(msg)
-
+        
 def main(args=None):
     rclpy.init(args=args)
     node = PlatoonMPCNode()
