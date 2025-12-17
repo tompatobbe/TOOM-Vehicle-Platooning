@@ -2,26 +2,31 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
 from sensor_msgs.msg import Range
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy # Import QoS modules
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 import numpy as np
 import cvxpy as cp
 
 class MPCFollowerQP:
     """
-    QP-based MPC follower controller with actuator dynamics (first-order lag).
-    Modified to include Leader Acceleration (Throttle) in prediction.
+    QP-based MPC follower controller.
     """
     def __init__(self,
                  dt=0.05,
-                 horizon=20,          # CHANGED: Increased horizon for smoother planning
+                 horizon=20,
                  tau_act=0.08,
-                 Qd=300.0,            # CHANGED: Lowered from 1500.0 (Less aggressive catch-up)
-                 Ru=5.0,              # CHANGED: Increased from 0.1 (Penalize high throttle usage)
-                 Rdu=100.0,           # CHANGED: Increased from 10.0 (Strongly penalize jerky throttle changes)
+                 # --- TUNING FOR CLOSE RANGE (RC CAR) ---
+                 Qd=500.0,            # Increased slightly so it reacts faster to small 15cm errors
+                 Ru=5.0,              # Discourages full throttle (keeps speed manageable)
+                 Rdu=100.0,           # Smooth acceleration (prevents wheelies/jerks)
+                 # ---------------------------------------
                  u_min=-1.0,
                  u_max=1.0,
-                 safety_distance=0.05,
-                 desired_distance=0.10, 
+                 
+                 # --- DISTANCE SETTINGS (0.15m Target) ---
+                 safety_distance=0.05,   # 5cm: The "Crash" line. MPC will panic if closer than this.
+                 desired_distance=0.15,  # 15cm: The Goal.
+                 # ----------------------------------------
+                 
                  solver=cp.OSQP,
                  verbose=False):
 
@@ -39,7 +44,7 @@ class MPCFollowerQP:
         self.solver = solver
         self.verbose = bool(verbose)
 
-        # Build discrete system matrices (A and B for x_{k+1} = A*x_k + B*u_k)
+        # Build discrete system matrices
         dt = self.dt
         # State: [pos, vel, a_act]
         A = np.array([
@@ -52,7 +57,7 @@ class MPCFollowerQP:
         self.A = A
         self.B = B
 
-        # Precompute prediction matrices Sx and Su
+        # Precompute prediction matrices
         nx = 3
         N = self.N
         Sx = np.zeros((nx*N, nx))
@@ -66,30 +71,25 @@ class MPCFollowerQP:
                 Aj = np.linalg.matrix_power(A, k - j)
                 Su[k*nx:(k+1)*nx, j] = (Aj @ B).flatten()
 
-        # Extract predicted positions
         pos_rows = [i * nx for i in range(N)]
         self.Px_pos = Sx[pos_rows, :]
         self.Pu_pos = Su[pos_rows, :]
         self.time_steps = np.array([(k+1) * dt for k in range(N)])
 
         # --- Build CVXPY Problem ---
-        self.U = cp.Variable(N)        # Control sequence
-        self.x0 = cp.Parameter(nx)     # Current follower state
+        self.U = cp.Variable(N)
+        self.x0 = cp.Parameter(nx)
         self.leader_pos0 = cp.Parameter() 
         self.v_leader = cp.Parameter() 
-        self.a_leader = cp.Parameter() # NEW: Leader Acceleration Parameter
+        self.a_leader = cp.Parameter() 
         self.u_prev = cp.Parameter()   
 
-        # Predicted follower position trajectory
         pos_pred = self.Px_pos @ self.x0 + self.Pu_pos @ self.U
         
-        # Predicted leader trajectory (Includes acceleration term now)
-        # p(t) = p0 + v*t + 0.5*a*t^2
         leader_vec = (self.leader_pos0 + 
                       self.v_leader * self.time_steps + 
                       0.5 * self.a_leader * cp.square(self.time_steps))
         
-        # Predicted distance trajectory
         dist = leader_vec - pos_pred
 
         # Cost Functions
@@ -113,20 +113,10 @@ class MPCFollowerQP:
 
     def compute_control(self, x_follower, d_meas, v_follower, leader_throttle, 
                         d_prev=None, u_prev_cmd=0.0):
-        """
-        Computes u_cmd using leader throttle and distance.
-        """
         pos_f, vel_f, a_act_f = x_follower
-        
-        # We work in a local frame where current follower pos is 0.0
-        # This prevents floating point issues with large global coordinates.
         local_x0 = [0.0, vel_f, a_act_f]
-        
-        # Leader is at distance d_meas
         leader_pos0_val = d_meas
 
-        # Estimate Leader Velocity
-        # v_leader = v_follower + d_dot
         if d_prev is not None:
             d_dot = (d_meas - d_prev) / max(self.dt, 1e-9)
         else:
@@ -134,16 +124,14 @@ class MPCFollowerQP:
         
         v_lead = d_dot + float(v_follower)
 
-        # Assign CVXPY parameters
         self.x0.value = np.array(local_x0, dtype=float)
         self.leader_pos0.value = float(leader_pos0_val)
         self.v_leader.value = float(v_lead)
-        self.a_leader.value = float(leader_throttle) # Pass leader throttle here
+        self.a_leader.value = float(leader_throttle)
         self.u_prev.value = float(u_prev_cmd)
 
         self.U.value = self.U_warm
 
-        # Solve
         try:
             self.problem.solve(solver=self.solver, verbose=self.verbose, warm_start=True, osqp_param={'verbose': 0})
         except Exception:
@@ -163,17 +151,13 @@ class PlatoonMPCNode(Node):
 
         # --- Parameters ---
         self.declare_parameter('dt', 0.05)
-        self.declare_parameter('target_dist', 1.0) 
+        # Note: 'target_dist' removed from parameters to avoid confusion. 
+        # Tuning is done inside MPCFollowerQP defaults.
         
-        # CHANGED: Default offset to 0.0. Only increase this if your ESC needs 
-        # a specific center value (e.g., 1500 for PWM, but usually 0.0 for ROS floats)
         self.declare_parameter('throttle_offset', 0.0)
-        
-        # Friction Deadband
         self.declare_parameter('friction_deadband', 0.3) 
 
         self.dt = self.get_parameter('dt').value
-        target_dist = self.get_parameter('target_dist').value
         self.throttle_offset = self.get_parameter('throttle_offset').value
         self.friction_deadband = self.get_parameter('friction_deadband').value
 
@@ -181,8 +165,6 @@ class PlatoonMPCNode(Node):
         self.mpc = MPCFollowerQP(
             dt=self.dt,
             horizon=20,
-            desired_distance=target_dist,
-            safety_distance=0.3,
             verbose=False
         )
 
@@ -234,7 +216,6 @@ class PlatoonMPCNode(Node):
         now = self.get_clock().now()
         time_since_dist = (now - self.last_dist_time).nanoseconds / 1e9
         
-        # Safety Check
         if time_since_dist > 0.5:
             self.stop_vehicle()
             return
@@ -258,18 +239,14 @@ class PlatoonMPCNode(Node):
         compensated_cmd = 0.0
 
         if u_cmd > 0.01:
-            # POSITIVE: Add friction deadband to start moving
+            # Add friction deadband to start moving
             compensated_cmd = u_cmd + self.friction_deadband
         else:
-            # NEGATIVE (Braking): Since we have no reverse/brakes, 
-            # we simply output 0.0 (Neutral/Coast)
+            # Coasting (No brakes) - Set to Neutral
             compensated_cmd = 0.0
 
-        # 4. Apply Offset (Ensure this is 0.0 unless your hardware requires it)
+        # 4. Apply Offset (Assuming 0.0 is neutral)
         final_cmd = compensated_cmd + self.throttle_offset
-        
-        # Clamp between 0.0 (Stop) and u_max (Forward)
-        # We clamp min to 0.0 because you said no reverse/braking.
         cmd_out = float(np.clip(final_cmd, 0.0, self.mpc.u_max))
 
         # Publish
@@ -277,12 +254,12 @@ class PlatoonMPCNode(Node):
         msg.data = cmd_out
         self.pub_throttle.publish(msg)
         
-        # 5. Update History (Save the RAW MPC intent, not the boosted command)
+        # 5. Update History
         self.prev_u_cmd = u_cmd
 
     def stop_vehicle(self):
         msg = Float32()
-        msg.data = 0.0 # Force zero output
+        msg.data = 0.0 
         self.pub_throttle.publish(msg)
         
 def main(args=None):
