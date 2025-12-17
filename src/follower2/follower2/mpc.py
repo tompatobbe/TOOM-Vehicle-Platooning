@@ -18,7 +18,7 @@ class MPCFollowerQP:
                  tau_act=0.08,
                  Qd=1500.0,
                  Ru=0.1,
-                 Rdu=10.0,
+                 Rdu=100.0,
                  u_min=-1.0,
                  u_max=1.0,
                  safety_distance=0.05,
