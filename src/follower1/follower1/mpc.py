@@ -14,7 +14,7 @@ class MPCFollowerQP:
                  dt=0.05,       # Time step
                  horizon=10,    # Prediction horizon
                  tau_act=0.08,  # Motor time constant
-                 Qd=2500.0,     # Distance error cost
+                 Qd=25000.0,     # Distance error cost
                  Ru=5000.0,     # Control effort cost
                  Rdu=100.0,     # Change in control cost
                  u_min=-1.0,    
