@@ -247,7 +247,7 @@ class PlatoonMPCNode(Node):
 
         if u_cmd > 0.01:
             # Add friction deadband to start moving
-            compensated_cmd = u_cmd + self.friction_deadband + self.leader_throttle * 0.3
+            compensated_cmd = u_cmd + self.friction_deadband + self.leader_throttle * 0.1
         else:
             # Coasting (No brakes) - Set to Neutral
             compensated_cmd = 0.0
