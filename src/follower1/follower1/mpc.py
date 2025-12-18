@@ -14,9 +14,9 @@ class MPCFollowerQP:
                  dt=0.05,       # Time step
                  horizon=10,    # Prediction horizon
                  tau_act=0.08,  # Motor time constant
-                 Qd=2000.0,     # <--- LOWERED: Reduces aggressive acceleration
+                 Qd=2000.0,     # Distance error cost
                  Ru=5000.0,     # Control effort cost
-                 Rdu=500.0,     # <--- INCREASED: Makes throttle changes smoother
+                 Rdu=500.0,     # Change in control cost
                  u_min=-1.0,    
                  u_max=1.0,
                  safety_distance=0.10,   
@@ -80,7 +80,8 @@ class MPCFollowerQP:
 
         pos_pred = self.Px_pos @ self.x0 + self.Pu_pos @ self.U
         
-        # Prediction model using Velocity Feedforward (from previous fix)
+        # FIXED: This prediction model relies heavily on v_leader.
+        # By passing Throttle into v_leader, this term (v * t) becomes large immediately.
         leader_vec = (self.leader_pos0 + 
                       self.v_leader * self.time_steps + 
                       0.5 * self.a_leader * cp.square(self.time_steps))
@@ -121,15 +122,20 @@ class MPCFollowerQP:
         v_lead_estimated = d_dot + float(v_follower)
 
         # 2. Treat Leader Throttle as Feedforward Velocity
+        # Assumption: 1.0 Throttle ~= 1.0 m/s (Adjust scale if needed)
+        # This handles the "Start from Stop" case where v_lead_estimated is 0.
         v_lead_feedforward = float(leader_throttle) * 1.0 
 
-        # 3. Fuse Signals
+        # 3. Fuse Signals: Take the max to ensure responsiveness
+        # If sensors say 0 but throttle says GO, we GO.
         final_v_lead = max(v_lead_estimated, v_lead_feedforward)
 
         self.x0.value = np.array(local_x0, dtype=float)
         self.leader_pos0.value = float(leader_pos0_val)
         
+        # FIXED: Pass calculated velocity here
         self.v_leader.value = float(final_v_lead)
+        # FIXED: Zero out acceleration to keep prediction linear and robust
         self.a_leader.value = 0.0 
         
         self.u_prev.value = float(u_prev_cmd)
@@ -139,7 +145,6 @@ class MPCFollowerQP:
         try:
             self.problem.solve(solver=self.solver, verbose=self.verbose, warm_start=True, osqp_param={'verbose': 0})
         except Exception:
-            # Fallback logic: Proportional P-Controller
             return float(np.clip(-1.5 * (self.desired_distance - d_meas), self.u_min, self.u_max))
 
         if self.problem.status not in [cp.OPTIMAL, cp.OPTIMAL_INACCURATE]:
@@ -241,23 +246,15 @@ class PlatoonMPCNode(Node):
         compensated_cmd = 0.0
 
         if u_cmd > 0.01:
-            # Forward Logic
+            # Add friction deadband to start moving
             compensated_cmd = u_cmd + self.friction_deadband
-        elif u_cmd < -0.01:
-            # FIXED: Braking Logic
-            # If the output is negative, we enable the brakes (negative value).
-            # We subtract deadband to ensure we engage the motor in reverse instantly.
-            compensated_cmd = u_cmd - self.friction_deadband
         else:
-            # Coasting (Neutral)
+            # Coasting (No brakes) - Set to Neutral
             compensated_cmd = 0.0
 
-        # 4. Apply Offset & Clip
+          # 4. Apply Offset (Assuming 0.0 is neutral)
         final_cmd = compensated_cmd + self.throttle_offset
-        
-        # FIXED: Allow negative values for Braking!
-        # Clip between u_min (-1.0) and u_max (1.0)
-        cmd_out = float(np.clip(final_cmd, self.mpc.u_min, self.mpc.u_max))
+        cmd_out = float(np.clip(final_cmd, 0.0, self.mpc.u_max))
 
         # Publish
         msg = Float32()
