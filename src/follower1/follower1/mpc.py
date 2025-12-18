@@ -18,7 +18,7 @@ class MPCFollowerQP:
                  Ru=5000.0,     # Control effort cost
                  Rdu=100.0,     # Change in control cost
                  u_min=-1.0,    
-                 u_max=1.0,
+                 u_max=0.5,
                  safety_distance=0.10,   
                  desired_distance=0.25,  
                  solver=cp.OSQP,
