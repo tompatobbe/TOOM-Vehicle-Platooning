@@ -154,7 +154,7 @@ class PlatoonMPCNode(Node):
         # Tuning is done inside MPCFollowerQP defaults.
         
         self.declare_parameter('throttle_offset', 0.0)
-        self.declare_parameter('friction_deadband', 0.2) 
+        self.declare_parameter('friction_deadband', 0.25) 
 
         self.dt = self.get_parameter('dt').value
         self.throttle_offset = self.get_parameter('throttle_offset').value
