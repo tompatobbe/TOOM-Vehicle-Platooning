@@ -11,13 +11,17 @@ class MPCFollowerQP:
     QP-based MPC follower controller.
     """
     def __init__(self,
-                 dt=0.05,
-                 horizon=20,
-                 tau_act=0.08,
-                 Qd=5.0,            # Increased slightly so it reacts faster to small errors
-                 Ru=500.0,              # Discourages full throttle (keeps speed manageable)
-                 Rdu=100.0,           # Smooth acceleration (prevents wheelies/jerks)
-                 u_min=-1.0,
+                 dt=0.05,       # Time step
+                 horizon=20,    # Prediction horizon
+                 tau_act=0.08,  # + Reduces oscillation/wobble by anticipating motor lag.
+                                # - Increases risk of oscillation if the real motor is slower than the model.
+                 Qd=5.0,        # + Car reacts faster and tracks tighter (stiffer), but may overshoot.
+                                # - Car reacts slower and gentler (softer), but takes longer to catch up.
+                 Ru=500.0,      # + Car saves energy and avoids top speed (efficient), but acts lazy.
+                                # - Car uses full throttle aggressively to fix small errors (greedy).
+                 Rdu=100.0,     # + Acceleration becomes smoother (limo-like), but response feels "laggy."
+                                # - Acceleration becomes jerkier (twitchy), but the car reacts instantly.
+                 u_min=-1.0,    
                  u_max=1.0,
                  
                  safety_distance=0.10,   # The "Crash" line. MPC will panic if closer than this.
