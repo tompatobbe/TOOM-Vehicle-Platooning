@@ -239,8 +239,8 @@ class PlatoonMPCNode(Node):
 
 
         if u_cmd > 0.1:            # Add friction deadband to start moving
-            compensated_cmd = u_cmd 
-            
+            compensated_cmd = np.sqrt(u_cmd)
+
         elif u_cmd > 0.01:
             # Add friction deadband to start moving
             compensated_cmd = u_cmd + self.friction_deadband
