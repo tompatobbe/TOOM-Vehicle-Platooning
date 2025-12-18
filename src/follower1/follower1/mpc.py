@@ -248,7 +248,7 @@ class PlatoonMPCNode(Node):
             compensated_cmd = min(u_cmd, 0.5) 
         elif u_cmd > 0.01:
             compensated_cmd = u_cmd + self.friction_deadband
-            compensated_cmd = min(0.65, compensated_cmd)    
+            compensated_cmd = min(0.60, compensated_cmd)    
         else:
             # Coasting (No brakes) - Set to Neutral
             compensated_cmd = 0.0
