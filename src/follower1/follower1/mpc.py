@@ -244,7 +244,7 @@ class PlatoonMPCNode(Node):
 
         # 3. Apply Deadband & Braking Logic
         compensated_cmd = 0.0
-        if u_cmd > 0.1:
+        if u_cmd > 0.3:
             compensated_cmd = u_cmd 
         elif u_cmd > 0.01:
             # Add friction deadband to start moving
