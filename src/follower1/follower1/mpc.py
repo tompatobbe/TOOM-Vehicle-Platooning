@@ -15,7 +15,7 @@ class MPCFollowerQP:
                  horizon=10,    # Prediction horizon
                  tau_act=0.08,  # + Reduces oscillation/wobble by anticipating motor lag.
                                 # - Increases risk of oscillation if the real motor is slower than the model.
-                 Qd=5000.0,        # + Car reacts faster and tracks tighter (stiffer), but may overshoot.
+                 Qd=50.0,        # + Car reacts faster and tracks tighter (stiffer), but may overshoot.
                                 # - Car reacts slower and gentler (softer), but takes longer to catch up.
                  Ru=5000.0,      # + Car saves energy and avoids top speed (efficient), but acts lazy.
                                 # - Car uses full throttle aggressively to fix small errors (greedy).
