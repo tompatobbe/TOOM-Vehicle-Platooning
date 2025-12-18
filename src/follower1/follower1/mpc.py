@@ -20,8 +20,8 @@ class MPCFollowerQP:
                  u_min=-1.0,
                  u_max=1.0,
                  
-                 safety_distance=0.10,   # 5cm: The "Crash" line. MPC will panic if closer than this.
-                 desired_distance=0.25,  # 15cm: The Goal.                 
+                 safety_distance=0.10,   # The "Crash" line. MPC will panic if closer than this.
+                 desired_distance=0.25,  # The Goal.                 
                  solver=cp.OSQP,
                  verbose=False):
 
