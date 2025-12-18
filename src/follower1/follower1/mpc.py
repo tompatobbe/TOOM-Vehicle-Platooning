@@ -154,7 +154,7 @@ class PlatoonMPCNode(Node):
         # Tuning is done inside MPCFollowerQP defaults.
         
         self.declare_parameter('throttle_offset', 0.0)
-        self.declare_parameter('friction_deadband', 0.0) 
+        self.declare_parameter('friction_deadband', 0.2) 
 
         self.dt = self.get_parameter('dt').value
         self.throttle_offset = self.get_parameter('throttle_offset').value
@@ -237,7 +237,11 @@ class PlatoonMPCNode(Node):
         # 3. Apply Deadband & Braking Logic
         compensated_cmd = 0.0
 
-        if u_cmd > 0.01:
+
+        if u_cmd > 0.1:            # Add friction deadband to start moving
+            compensated_cmd = u_cmd 
+            
+        elif u_cmd > 0.01:
             # Add friction deadband to start moving
             compensated_cmd = u_cmd + self.friction_deadband
         else:
