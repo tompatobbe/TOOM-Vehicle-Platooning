@@ -12,7 +12,7 @@ class MPCFollowerQP:
     """
     def __init__(self,
                  dt=0.01,       # Time step
-                 horizon=10,    # Prediction horizon
+                 horizon=20,    # Prediction horizon
                  tau_act=0.08,  # Motor time constant
                  Qd=2000.0,     # Distance error cost
                  Ru=5000.0,     # Control effort cost
