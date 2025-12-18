@@ -12,7 +12,7 @@ class MPCFollowerQP:
     """
     def __init__(self,
                  dt=0.05,       # Time step
-                 horizon=10,    # Prediction horizon
+                 horizon=20,    # Prediction horizon
                  tau_act=0.08,  # + Reduces oscillation/wobble by anticipating motor lag.
                                 # - Increases risk of oscillation if the real motor is slower than the model.
                  Qd=5.0,        # + Car reacts faster and tracks tighter (stiffer), but may overshoot.
