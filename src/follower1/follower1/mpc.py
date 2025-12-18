@@ -245,7 +245,7 @@ class PlatoonMPCNode(Node):
         # 3. Apply Deadband & Braking Logic
         compensated_cmd = 0.0
         if u_cmd > 0.01:
-            compensated_cmd = u_cmd 
+            compensated_cmd = u_cmd + self.friction_deadband
         else:
             # Coasting (No brakes) - Set to Neutral
             compensated_cmd = 0.0
