@@ -251,7 +251,7 @@ class PlatoonMPCNode(Node):
         else:
             # Coasting (No brakes) - Set to Neutral
             compensated_cmd = 0.0
-        compensated_cmd = max(0.65, compensated_cmd)
+        compensated_cmd = min(0.65, compensated_cmd)
 
           # 4. Apply Offset (Assuming 0.0 is neutral)
         final_cmd = compensated_cmd + self.throttle_offset
