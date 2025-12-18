@@ -193,16 +193,16 @@ class PlatoonMPCNode(Node):
         )      
 
         self.sub_dist = self.create_subscription(
-            Range, 'follower1/sonar_dist', self.distance_callback, sensor_qos)
+            Range, 'follower2/sonar_dist', self.distance_callback, sensor_qos)
 
         self.sub_leader_u = self.create_subscription(
-            Float32, 'leader/motor_throttle', self.leader_throttle_callback, 10)
+            Float32, 'follower1/motor_throttle', self.leader_throttle_callback, 10)
         
         self.sub_odom = self.create_subscription(
-            Float32, 'follower1/encoder_speed_mps', self.odom_callback, 10)
+            Float32, 'follower2/encoder_speed_mps', self.odom_callback, 10)
 
         # --- Publishers ---
-        self.pub_throttle = self.create_publisher(Float32, 'follower1/motor_throttle', 10)
+        self.pub_throttle = self.create_publisher(Float32, 'follower2/motor_throttle', 10)
 
         # --- Control Loop ---
         self.timer = self.create_timer(self.dt, self.control_loop)
