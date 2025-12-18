@@ -80,7 +80,7 @@ class ServoController(Node):
             self.servo.angle = final_angle
             
             # Enhanced logging to see the calculation
-            self.get_logger().info(f'Input: {msg.data:.1f} | Base: {base_angle:.1f} | Offset: {self.middle_offset} | Final: {final_angle:.2f}°')
+            #self.get_logger().info(f'Input: {msg.data:.1f} | Base: {base_angle:.1f} | Offset: {self.middle_offset} | Final: {final_angle:.2f}°')
 
 
     def cleanup(self):

@@ -19,7 +19,7 @@ class JoystickController(Node):
         self.servo_publisher = self.create_publisher(
             Float32,
             'leader/servo/angle',
-            10)
+            10) 
 
         # Publisher for Forward (R2)
         self.motor_publisher = self.create_publisher(
@@ -82,7 +82,7 @@ class JoystickController(Node):
             self.reverse_publisher.publish(rev_msg)
 
             # Log status
-            self.get_logger().info(f"Fwd: {throttle_fwd:.2f} | Rev: {throttle_rev:.2f}")
+            self.get_logger().info(f"Fwd: {throttle_fwd:.2f} | Rev: {throttle_rev:.2f} | Servo: {self.current_angle:.2f}°")
 
 def main(args=None):
     rclpy.init(args=args)
