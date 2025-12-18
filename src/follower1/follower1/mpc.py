@@ -11,7 +11,7 @@ class MPCFollowerQP:
     QP-based MPC follower controller.
     """
     def __init__(self,
-                 dt=0.02,       # Time step
+                 dt=0.01,       # Time step
                  horizon=10,    # Prediction horizon
                  tau_act=0.08,  # Motor time constant
                  Qd=2000.0,     # Distance error cost
