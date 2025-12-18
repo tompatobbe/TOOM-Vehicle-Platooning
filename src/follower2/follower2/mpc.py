@@ -14,7 +14,7 @@ class MPCFollowerQP:
                  dt=0.01,       # Time step
                  horizon=10,    # Prediction horizon
                  tau_act=0.08,  # Motor time constant
-                 Qd=2000.0,     # Distance error cost
+                 Qd=200.0,     # Distance error cost
                  Ru=5000.0,     # Control effort cost
                  Rdu=500.0,     # Change in control cost
                  u_min=-1.0,    
@@ -124,7 +124,7 @@ class MPCFollowerQP:
         # 2. Treat Leader Throttle as Feedforward Velocity
         # Assumption: 1.0 Throttle ~= 1.0 m/s (Adjust scale if needed)
         # This handles the "Start from Stop" case where v_lead_estimated is 0.
-        v_lead_feedforward = float(leader_throttle) * 1.0 
+        v_lead_feedforward = float(leader_throttle) * 0.1 
 
         # 3. Fuse Signals: Take the max to ensure responsiveness
         # If sensors say 0 but throttle says GO, we GO.
@@ -162,7 +162,7 @@ class PlatoonMPCNode(Node):
         # --- Parameters ---
         self.declare_parameter('dt', 0.05)
         self.declare_parameter('throttle_offset', 0.0)
-        self.declare_parameter('friction_deadband', 0.25) 
+        self.declare_parameter('friction_deadband', 0.40) 
 
         self.dt = self.get_parameter('dt').value
         self.throttle_offset = self.get_parameter('throttle_offset').value
@@ -193,16 +193,16 @@ class PlatoonMPCNode(Node):
         )      
 
         self.sub_dist = self.create_subscription(
-            Range, 'follower2/sonar_dist', self.distance_callback, sensor_qos)
+            Range, 'follower1/sonar_dist', self.distance_callback, sensor_qos)
 
         self.sub_leader_u = self.create_subscription(
             Float32, 'leader/motor_throttle', self.leader_throttle_callback, 10)
         
         self.sub_odom = self.create_subscription(
-            Float32, 'follower2/encoder_speed_mps', self.odom_callback, 10)
+            Float32, 'follower1/encoder_speed_mps', self.odom_callback, 10)
 
         # --- Publishers ---
-        self.pub_throttle = self.create_publisher(Float32, 'follower2/motor_throttle', 10)
+        self.pub_throttle = self.create_publisher(Float32, 'follower1/motor_throttle', 10)
 
         # --- Control Loop ---
         self.timer = self.create_timer(self.dt, self.control_loop)
@@ -242,16 +242,16 @@ class PlatoonMPCNode(Node):
             u_prev_cmd=self.prev_u_cmd
         )
 
-        # 3. Apply Deadband & Braking Logic
+        # 3. Apply Deadband 
         compensated_cmd = 0.0
-        if u_cmd > 0.01 and not (self.current_velocity == 0):
-            compensated_cmd = u_cmd + self.friction_deadband * 0.5
+        if not (self.current_velocity == 0.0):
+            compensated_cmd = min(u_cmd, 0.5) 
         elif u_cmd > 0.01:
             compensated_cmd = u_cmd + self.friction_deadband
+            compensated_cmd = min(0.70, compensated_cmd)    
         else:
             # Coasting (No brakes) - Set to Neutral
             compensated_cmd = 0.0
-        compensated_cmd = min(0.65, compensated_cmd)
 
           # 4. Apply Offset (Assuming 0.0 is neutral)
         final_cmd = compensated_cmd + self.throttle_offset
