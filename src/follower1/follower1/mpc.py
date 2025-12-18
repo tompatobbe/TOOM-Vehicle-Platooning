@@ -162,7 +162,7 @@ class PlatoonMPCNode(Node):
         # --- Parameters ---
         self.declare_parameter('dt', 0.05)
         self.declare_parameter('throttle_offset', 0.0)
-        self.declare_parameter('friction_deadband', 0.0) 
+        self.declare_parameter('friction_deadband', 0.25) 
 
         self.dt = self.get_parameter('dt').value
         self.throttle_offset = self.get_parameter('throttle_offset').value
@@ -244,10 +244,11 @@ class PlatoonMPCNode(Node):
 
         # 3. Apply Deadband & Braking Logic
         compensated_cmd = 0.0
-
-        if u_cmd > 0.01:
+        if u_cmd > 0.1:
+            compensated_cmd = u_cmd 
+        elif u_cmd > 0.01:
             # Add friction deadband to start moving
-            compensated_cmd = u_cmd + self.friction_deadband + self.leader_throttle * 0.1
+            compensated_cmd = u_cmd + self.friction_deadband + self.leader_throttle * 0.0
         else:
             # Coasting (No brakes) - Set to Neutral
             compensated_cmd = 0.0
