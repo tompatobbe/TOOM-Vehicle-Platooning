@@ -124,7 +124,7 @@ class MPCFollowerQP:
         # 2. Treat Leader Throttle as Feedforward Velocity
         # Assumption: 1.0 Throttle ~= 1.0 m/s (Adjust scale if needed)
         # This handles the "Start from Stop" case where v_lead_estimated is 0.
-        v_lead_feedforward = float(leader_throttle) * 0.2 
+        v_lead_feedforward = float(leader_throttle) * 0.1 
 
         # 3. Fuse Signals: Take the max to ensure responsiveness
         # If sensors say 0 but throttle says GO, we GO.
