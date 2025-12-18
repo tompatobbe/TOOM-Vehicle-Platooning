@@ -13,19 +13,14 @@ class MPCFollowerQP:
     def __init__(self,
                  dt=0.05,       # Time step
                  horizon=10,    # Prediction horizon
-                 tau_act=0.08,  # + Reduces oscillation/wobble by anticipating motor lag.
-                                # - Increases risk of oscillation if the real motor is slower than the model.
-                 Qd=2500.0,        # + Car reacts faster and tracks tighter (stiffer), but may overshoot.
-                                # - Car reacts slower and gentler (softer), but takes longer to catch up.
-                 Ru=5000.0,      # + Car saves energy and avoids top speed (efficient), but acts lazy.
-                                # - Car uses full throttle aggressively to fix small errors (greedy).
-                 Rdu=100.0,     # + Acceleration becomes smoother (limo-like), but response feels "laggy."
-                                # - Acceleration becomes jerkier (twitchy), but the car reacts instantly.
+                 tau_act=0.08,  # Motor time constant
+                 Qd=2500.0,     # Distance error cost
+                 Ru=5000.0,     # Control effort cost
+                 Rdu=100.0,     # Change in control cost
                  u_min=-1.0,    
                  u_max=1.0,
-                 
-                 safety_distance=0.10,   # The "Crash" line. MPC will panic if closer than this.
-                 desired_distance=0.25,  # The Goal.                 
+                 safety_distance=0.10,   
+                 desired_distance=0.25,  
                  solver=cp.OSQP,
                  verbose=False):
 
@@ -85,6 +80,8 @@ class MPCFollowerQP:
 
         pos_pred = self.Px_pos @ self.x0 + self.Pu_pos @ self.U
         
+        # FIXED: This prediction model relies heavily on v_leader.
+        # By passing Throttle into v_leader, this term (v * t) becomes large immediately.
         leader_vec = (self.leader_pos0 + 
                       self.v_leader * self.time_steps + 
                       0.5 * self.a_leader * cp.square(self.time_steps))
@@ -116,17 +113,31 @@ class MPCFollowerQP:
         local_x0 = [0.0, vel_f, a_act_f]
         leader_pos0_val = d_meas
 
+        # 1. Calculate Estimated Speed from Sensors
         if d_prev is not None:
             d_dot = (d_meas - d_prev) / max(self.dt, 1e-9)
         else:
             d_dot = 0.0
         
-        v_lead = d_dot + float(v_follower)
+        v_lead_estimated = d_dot + float(v_follower)
+
+        # 2. Treat Leader Throttle as Feedforward Velocity
+        # Assumption: 1.0 Throttle ~= 1.0 m/s (Adjust scale if needed)
+        # This handles the "Start from Stop" case where v_lead_estimated is 0.
+        v_lead_feedforward = float(leader_throttle) * 1.0 
+
+        # 3. Fuse Signals: Take the max to ensure responsiveness
+        # If sensors say 0 but throttle says GO, we GO.
+        final_v_lead = max(v_lead_estimated, v_lead_feedforward)
 
         self.x0.value = np.array(local_x0, dtype=float)
         self.leader_pos0.value = float(leader_pos0_val)
-        self.v_leader.value = float(v_lead)
-        self.a_leader.value = float(leader_throttle)
+        
+        # FIXED: Pass calculated velocity here
+        self.v_leader.value = float(final_v_lead)
+        # FIXED: Zero out acceleration to keep prediction linear and robust
+        self.a_leader.value = 0.0 
+        
         self.u_prev.value = float(u_prev_cmd)
 
         self.U.value = self.U_warm
@@ -150,9 +161,6 @@ class PlatoonMPCNode(Node):
 
         # --- Parameters ---
         self.declare_parameter('dt', 0.05)
-        # Note: 'target_dist' removed from parameters to avoid confusion. 
-        # Tuning is done inside MPCFollowerQP defaults.
-        
         self.declare_parameter('throttle_offset', 0.0)
         self.declare_parameter('friction_deadband', 0.25) 
 
@@ -182,7 +190,7 @@ class PlatoonMPCNode(Node):
             reliability=ReliabilityPolicy.BEST_EFFORT,
             history=HistoryPolicy.KEEP_LAST,
             depth=1
-        )       
+        )      
 
         self.sub_dist = self.create_subscription(
             Range, 'follower1/sonar_dist', self.distance_callback, sensor_qos)
@@ -237,10 +245,8 @@ class PlatoonMPCNode(Node):
         # 3. Apply Deadband & Braking Logic
         compensated_cmd = 0.0
 
-
         if u_cmd > 0.1:            # Add friction deadband to start moving
             compensated_cmd = np.sqrt(u_cmd) - 0.05
-
         elif u_cmd > 0.01:
             # Add friction deadband to start moving
             compensated_cmd = u_cmd + self.friction_deadband
