@@ -17,7 +17,7 @@ class MPCFollowerQP:
                                 # - Increases risk of oscillation if the real motor is slower than the model.
                  Qd=5.0,        # + Car reacts faster and tracks tighter (stiffer), but may overshoot.
                                 # - Car reacts slower and gentler (softer), but takes longer to catch up.
-                 Ru=500.0,      # + Car saves energy and avoids top speed (efficient), but acts lazy.
+                 Ru=5000.0,      # + Car saves energy and avoids top speed (efficient), but acts lazy.
                                 # - Car uses full throttle aggressively to fix small errors (greedy).
                  Rdu=100.0,     # + Acceleration becomes smoother (limo-like), but response feels "laggy."
                                 # - Acceleration becomes jerkier (twitchy), but the car reacts instantly.
