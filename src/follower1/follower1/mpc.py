@@ -162,7 +162,7 @@ class PlatoonMPCNode(Node):
         # --- Parameters ---
         self.declare_parameter('dt', 0.05)
         self.declare_parameter('throttle_offset', 0.0)
-        self.declare_parameter('friction_deadband', 0.0) 
+        self.declare_parameter('friction_deadband', 0.1) 
 
         self.dt = self.get_parameter('dt').value
         self.throttle_offset = self.get_parameter('throttle_offset').value
