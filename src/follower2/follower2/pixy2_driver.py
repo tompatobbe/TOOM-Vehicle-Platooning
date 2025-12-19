@@ -102,7 +102,7 @@ class Pixy2SpiNode(Node):
                 self.publisher_.publish(msg)
 
                 # Print to terminal
-                self.get_logger().info(f"Target X={x} | Sending Val={control_val:.2f}")
+                #self.get_logger().info(f"Target X={x} | Sending Val={control_val:.2f}")
                 
             except struct.error as e:
                 self.get_logger().warn(f"Unpack Error: {e}")
